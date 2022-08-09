@@ -1,0 +1,17 @@
+BasedOnStyle: Chromium
+AccessModifierOffset: -2
+AlignTrailingComments: false
+AllowShortBlocksOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: All
+AllowShortLoopsOnASingleLine: true
+ColumnLimit: 80
+BreakBeforeBinaryOperators: NonAssignment
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^"/'
+    SortPriority: 1
+  - Regex: '^<(cub|cuda|curand|nvtools|omp|thrust)'
+    SortPriority: 99
+  - Regex: '^<(cassert|ccomplex|cctype|cerrno|cfenv|cfloat|cinttypes|ciso646|climits|clocale|cmath|csetjmp|csignal|cstdalign|cstdarg|cstdbool|cstddef|cstdint|cstdio|cstdlib|cstring|ctgmath|ctime|cuchar|cwchar|cwctype|algorithm|array|atomic|bitset|charconv|chrono|codecvt|complex|condition_variable|deque|exception|filesystem|forward_list|fstream|functional|future|initializer_list|iomanip|ios|iosfwd|iostream|istream|iterator|limits|list|locale|map|memory|mutex|new|numeric|ostream|queue|random|ratio|regex|scoped_allocator|set|shared_mutex|sstream|stack|stdexcept|streambuf|string|system_error|thread|tuple|type_traits|typeindex|typeinfo|unordered_map|unordered_set|utility|valarray|vector)>'
+    SortPriority: 100
