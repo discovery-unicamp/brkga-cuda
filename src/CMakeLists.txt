@@ -24,5 +24,5 @@ set_property(TARGET brkga-cuda PROPERTY CUDA_STANDARD 11)
 set_property(TARGET brkga-cuda PROPERTY CUDA_ARCHITECTURES 61)
 
 target_compile_options(brkga-cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: -Xcompiler -fopenmp>)
-target_link_libraries(brkga-cuda PUBLIC bb_segsort)
-target_link_libraries(brkga-cuda PUBLIC OpenMP::OpenMP_CXX PUBLIC -lcurand -fopenmp)
+target_link_libraries(brkga-cuda PRIVATE bb-segsort)
+target_link_libraries(brkga-cuda PRIVATE OpenMP::OpenMP_CXX PUBLIC -lcurand -fopenmp)
