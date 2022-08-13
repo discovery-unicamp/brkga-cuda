@@ -2,6 +2,7 @@
 #define BRKGACUDA_BRKGA_HPP
 
 #include "BrkgaConfiguration.hpp"
+#include "Chromosome.hpp"
 #include "CudaUtils.hpp"
 
 #include <curand.h>  // TODO check if this header is required here
@@ -93,6 +94,12 @@ private:
    */
   void updateFitness();
 
+  template <class T>
+  Chromosome<T>* wrapCpu(T* pop, const unsigned n);
+
+  template <class T>
+  Chromosome<T>* wrapGpu(cudaStream_t stream, T* pop, const unsigned n);
+
   /// The main stream to run the operations indenpendently
   constexpr static cudaStream_t defaultStream = nullptr;
 
@@ -101,6 +108,7 @@ private:
   cuda::Matrix<float> dPopulation;  /// All the chromosomes
   std::vector<float> population;  /// All chromosomes, but on CPU
   cuda::Matrix<float> dPopulationTemp;  /// Temp memory for chromosomes
+  Chromosome<float>* populationWrapper;  /// Wrapper for the decoder
 
   cuda::Matrix<float> dFitness;  /// The (sorted) fitness of each chromosome
   std::vector<float> fitness;  /// All fitness, but on CPU

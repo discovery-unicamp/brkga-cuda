@@ -2,6 +2,7 @@
 #define SRC_BRKGA_INSTANCE_HPP
 
 #include "BrkgaConfiguration.hpp"
+#include "Chromosome.hpp"
 
 #include <cuda_runtime.h>
 
@@ -20,26 +21,26 @@ public:
     config = newConfig;
   }
 
-  virtual float decode(const float* chromosome) const;
+  virtual float decode(const Chromosome<float>& chromosome) const;
 
-  virtual float decode(const unsigned* permutation) const;
+  virtual float decode(const Chromosome<unsigned>& permutation) const;
 
   virtual void decode(unsigned numberOfChromosomes,
-                      const float* chromosomes,
+                      const Chromosome<float>* chromosomes,
                       float* fitness) const;
 
   virtual void decode(unsigned numberOfPermutations,
-                      const unsigned* permutations,
+                      const Chromosome<unsigned>* permutations,
                       float* fitness) const;
 
   virtual void decode(cudaStream_t stream,
                       unsigned numberOfChromosomes,
-                      const float* dChromosomes,
+                      const Chromosome<float>* dChromosomes,
                       float* dFitness) const;
 
   virtual void decode(cudaStream_t stream,
                       unsigned numberOfPermutations,
-                      const unsigned* dPermutations,
+                      const Chromosome<unsigned>* dPermutations,
                       float* dFitness) const;
 
 protected:
