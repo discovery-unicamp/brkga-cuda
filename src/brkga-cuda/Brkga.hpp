@@ -95,10 +95,10 @@ private:
   void updateFitness();
 
   template <class T>
-  Chromosome<T>* wrapCpu(T* pop, const unsigned n);
+  Chromosome<T>* wrapCpu(T* pop, unsigned popId, unsigned n);
 
   template <class T>
-  Chromosome<T>* wrapGpu(cudaStream_t stream, T* pop, const unsigned n);
+  Chromosome<T>* wrapGpu(T* pop, unsigned popId, unsigned n);
 
   /// The main stream to run the operations indenpendently
   constexpr static cudaStream_t defaultStream = nullptr;

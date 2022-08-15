@@ -29,6 +29,11 @@ box::Brkga::Brkga(const BrkgaConfiguration& config)
       dRandomEliteParent(config.numberOfPopulations, config.populationSize),
       dRandomParent(config.numberOfPopulations, config.populationSize) {
   CUDA_CHECK_LAST();
+  logger::info("Building BoxBrkga with", config.numberOfPopulations,
+               "populations, each with", config.populationSize,
+               "chromosomes of length", config.chromosomeLength);
+  logger::info("Selected decoder:", config.decodeType.str());
+
   // TODO save only the configuration class
   decoder = config.decoder;
   numberOfPopulations = config.numberOfPopulations;
@@ -211,57 +216,59 @@ void box::Brkga::updateFitness() {
     syncStreams();
   }
 
+  const auto n =
+      (decodeType.allAtOnce() ? numberOfPopulations : 1) * populationSize;
   for (unsigned p = 0; p < numberOfPopulations; ++p) {
-    const auto n =
-        (decodeType.allAtOnce() ? numberOfPopulations : 1) * populationSize;
-
     if (decodeType.onCpu()) {
       cuda::sync(streams[p]);
       if (decodeType.chromosome()) {
-        decoder->decode(n,
-                        wrapCpu(population.data() + p * n * chromosomeSize, n),
+        decoder->decode(n, wrapCpu(population.data(), p, n),
                         fitness.data() + p * n);
       } else {
-        decoder->decode(
-            n, wrapCpu(permutations.data() + p * n * chromosomeSize, n),
-            fitness.data() + p * n);
+        decoder->decode(n, wrapCpu(permutations.data(), p, n),
+                        fitness.data() + p * n);
       }
 
       cuda::copy2d(streams[p], dFitness.row(p), fitness.data() + p * n, n);
     } else {
       if (decodeType.chromosome()) {
-        decoder->decode(streams[p], n,
-                        wrapGpu(streams[p], dPopulation.row(p), n),
+        decoder->decode(streams[p], n, wrapGpu(dPopulation.get(), p, n),
                         dFitness.row(p));
       } else {
-        decoder->decode(streams[p], n,
-                        wrapGpu(streams[p], dPermutations.row(p), n),
+        decoder->decode(streams[p], n, wrapGpu(dPermutations.get(), p, n),
                         dFitness.row(p));
       }
       CUDA_CHECK_LAST();
     }
 
-    cuda::iota(streams[p], dFitnessIdx.row(p), n);
-    cuda::sortByKey(streams[p], dFitness.row(p), dFitnessIdx.row(p), n);
-
+    // Cannot sort all chromosomes since they come from different populations
     if (decodeType.allAtOnce()) {
-      // Sync to prevent other streams from starting to process new tasks
-      cuda::sync(streams[0]);
+      cuda::sync(streams[0]);  // To avoid sort starting before decoder
+      for (unsigned q = 0; q < numberOfPopulations; ++q) {
+        cuda::iota(streams[q], dFitnessIdx.row(q), populationSize);
+        cuda::sortByKey(streams[q], dFitness.row(q), dFitnessIdx.row(q),
+                        populationSize);
+      }
       break;
     }
+
+    cuda::iota(streams[p], dFitnessIdx.row(p), populationSize);
+    cuda::sortByKey(streams[p], dFitness.row(p), dFitnessIdx.row(p),
+                    populationSize);
   }
 
   logger::debug("Decoding step has finished");
 }
 
 template <class T>
-auto box::Brkga::wrapCpu(T* pop, const unsigned n) -> Chromosome<T>* {
-  // Should receive the pop num and return based on the population offset
-  auto* wrapper = (Chromosome<T>*)populationWrapper;
+auto box::Brkga::wrapCpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
+  pop += popId * n * chromosomeSize;
+  auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n * chromosomeSize;
+
   for (unsigned k = 0; k < n; ++k) {
-    wrapper[k] = Chromosome<T>(pop, chromosomeSize, k);
+    wrap[k] = Chromosome<T>(pop, chromosomeSize, k);
   }
-  return wrapper;
+  return wrap;
 }
 
 template <class T>
@@ -275,13 +282,15 @@ __global__ void initWrapper(box::Chromosome<T>* dWrapper,
 }
 
 template <class T>
-auto box::Brkga::wrapGpu(cudaStream_t stream, T* pop, const unsigned n)
-    -> Chromosome<T>* {
-  auto* wrapper = (Chromosome<T>*)populationWrapper;
+auto box::Brkga::wrapGpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
+  // TODO this will not work for transposed matrices with the `all` decoder
+  pop += popId * n * chromosomeSize;
+  auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n * chromosomeSize;
+
   const auto blocks = cuda::blocks(n, threadsPerBlock);
-  initWrapper<<<blocks, threadsPerBlock, 0, stream>>>(wrapper, pop,
-                                                      chromosomeSize, n);
-  return wrapper;
+  initWrapper<<<blocks, threadsPerBlock, 0, streams[popId]>>>(
+      wrap, pop, chromosomeSize, n);
+  return wrap;
 }
 
 void box::Brkga::sortChromosomesGenes() {
