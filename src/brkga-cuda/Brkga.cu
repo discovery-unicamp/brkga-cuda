@@ -50,6 +50,7 @@ box::Brkga::Brkga(const BrkgaConfiguration& config)
   decoder->setConfiguration(&config);
 
   static_assert(sizeof(Chromosome<float>) == sizeof(Chromosome<unsigned>));
+  logger::debug("Allocating", numberOfChromosomes, "positions to the wrapper");
   populationWrapper =
       decodeType.onCpu()
           ? new Chromosome<float>[numberOfChromosomes]
@@ -222,23 +223,30 @@ void box::Brkga::updateFitness() {
     if (decodeType.onCpu()) {
       cuda::sync(streams[p]);
       if (decodeType.chromosome()) {
-        decoder->decode(n, wrapCpu(population.data(), p, n),
-                        fitness.data() + p * n);
+        auto* wrap = wrapCpu(population.data(), p, n);
+        logger::debug("Entering CPU-chromosome decoder");
+        decoder->decode(n, wrap, fitness.data() + p * n);
       } else {
-        decoder->decode(n, wrapCpu(permutations.data(), p, n),
-                        fitness.data() + p * n);
+        auto* wrap = wrapCpu(permutations.data(), p, n);
+        logger::debug("Entering CPU-permutation decoder");
+        decoder->decode(n, wrap, fitness.data() + p * n);
       }
+      logger::debug("The decoder has finished");
 
+      logger::debug("Copying fitness back to device");
       cuda::copy2d(streams[p], dFitness.row(p), fitness.data() + p * n, n);
     } else {
       if (decodeType.chromosome()) {
-        decoder->decode(streams[p], n, wrapGpu(dPopulation.get(), p, n),
-                        dFitness.row(p));
+        auto* wrap = wrapGpu(dPopulation.get(), p, n);
+        logger::debug("Entering GPU-chromosome decoder");
+        decoder->decode(streams[p], n, wrap, dFitness.row(p));
       } else {
-        decoder->decode(streams[p], n, wrapGpu(dPermutations.get(), p, n),
-                        dFitness.row(p));
+        auto* wrap = wrapGpu(dPermutations.get(), p, n);
+        logger::debug("Entering GPU-permutation decoder");
+        decoder->decode(streams[p], n, wrap, dFitness.row(p));
       }
       CUDA_CHECK_LAST();
+      logger::debug("The decoder has finished");
     }
 
     // Cannot sort all chromosomes since they come from different populations
@@ -262,8 +270,9 @@ void box::Brkga::updateFitness() {
 
 template <class T>
 auto box::Brkga::wrapCpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
+  logger::debug("Wrapping population", popId);
   pop += popId * n * chromosomeSize;
-  auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n * chromosomeSize;
+  auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n;
 
   for (unsigned k = 0; k < n; ++k) {
     wrap[k] = Chromosome<T>(pop, chromosomeSize, k);
@@ -285,7 +294,7 @@ template <class T>
 auto box::Brkga::wrapGpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
   // TODO this will not work for transposed matrices with the `all` decoder
   pop += popId * n * chromosomeSize;
-  auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n * chromosomeSize;
+  auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n;
 
   const auto blocks = cuda::blocks(n, threadsPerBlock);
   initWrapper<<<blocks, threadsPerBlock, 0, streams[popId]>>>(
