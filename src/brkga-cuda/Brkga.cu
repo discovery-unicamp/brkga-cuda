@@ -38,8 +38,6 @@ box::Brkga::Brkga(const BrkgaConfiguration& config)
   decoder = config.decoder;
   numberOfPopulations = config.numberOfPopulations;
   populationSize = config.populationSize;
-  numberOfChromosomes = numberOfPopulations * populationSize;
-  numberOfGenes = numberOfChromosomes * config.chromosomeLength;
   chromosomeSize = config.chromosomeLength;
   eliteSize = config.eliteCount;
   mutantsSize = config.mutantsCount;
@@ -50,11 +48,11 @@ box::Brkga::Brkga(const BrkgaConfiguration& config)
   decoder->setConfiguration(&config);
 
   static_assert(sizeof(Chromosome<float>) == sizeof(Chromosome<unsigned>));
-  logger::debug("Allocating", numberOfChromosomes, "positions to the wrapper");
+  const auto totalChromosomes = numberOfPopulations * populationSize;
   populationWrapper =
       decodeType.onCpu()
-          ? new Chromosome<float>[numberOfChromosomes]
-          : cuda::alloc<Chromosome<float>>(nullptr, numberOfChromosomes);
+          ? new Chromosome<float>[totalChromosomes]
+          : cuda::alloc<Chromosome<float>>(nullptr, totalChromosomes);
 
   // One stream for each population
   streams.resize(numberOfPopulations);
@@ -319,7 +317,7 @@ void box::Brkga::sortChromosomesGenes() {
   //  synchonization.
   syncStreams();
   cuda::segSort(streams[0], dPopulationTemp.get(), dPermutations.get(),
-                numberOfChromosomes, chromosomeSize);
+                numberOfPopulations * populationSize, chromosomeSize);
   cuda::sync(streams[0]);
 }
 
@@ -407,8 +405,8 @@ std::vector<float> box::Brkga::getBestChromosome() {
 }
 
 std::vector<unsigned> box::Brkga::getBestPermutation() {
-  if (!decodeType.chromosome())
-    throw std::runtime_error("Only sorted decodes can get the sorted indices");
+  if (decodeType.chromosome())
+    throw std::runtime_error("The chromosome decoder has no permutation");
 
   auto bestIdx = getBest();
   auto bestPopulation = bestIdx.first;

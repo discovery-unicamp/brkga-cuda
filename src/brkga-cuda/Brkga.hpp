@@ -119,9 +119,6 @@ private:
   cuda::Matrix<float> dRandomEliteParent;  /// The elite parent
   cuda::Matrix<float> dRandomParent;  /// The non-elite parent
 
-  unsigned numberOfChromosomes;  /// Total number of chromosomes
-  unsigned numberOfGenes;  /// Total number of genes
-
   unsigned chromosomeSize;  /// The size of each chromosome
   unsigned populationSize;  /// The size of each population
   unsigned eliteSize;  /// The number of elites in the population
