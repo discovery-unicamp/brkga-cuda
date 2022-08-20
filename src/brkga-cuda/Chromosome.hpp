@@ -3,6 +3,7 @@
 
 #include <cuda_runtime.h>
 
+#include <cassert>
 #include <type_traits>
 
 namespace box {
@@ -17,22 +18,49 @@ public:
 
   __host__ __device__ inline Chromosome(T* _population,
                                         unsigned _columnCount,
-                                        unsigned _chromosomeIndex)
+                                        unsigned _chromosomeIndex,
+                                        unsigned _guideIndex = (unsigned)-1,
+                                        unsigned _guideStart = 0,
+                                        unsigned _guideEnd = 0)
       : population(_population),
         columnCount(_columnCount),
-        chromosomeIndex(_chromosomeIndex) {
+        chromosomeIndex(_chromosomeIndex),
+        guideIndex(_guideIndex),
+        guideStart(_guideStart),
+        guideEnd(_guideEnd) {
+    assert(chromosomeIndex != guideIndex);
+    assert(guideEnd < (1u << (8 * sizeof(unsigned) - 1)));
+
 // TODO define GPU specific code to access the transposed matrix
 #ifndef CUDA_ARCH
     // Add an offset to the first gene of the chromosome
+    guidePopulation = _population + guideIndex * columnCount;
     population += chromosomeIndex * columnCount;
 #endif
+
+    if (guideStart >= guideEnd) {
+      guideStart = guideEnd = 0;
+#ifndef CUDA_ARCH
+      guidePopulation = nullptr;
+#endif  // CUDA_ARCH
+    } else {
+      guideEnd -= guideStart;
+    }
   }
 
-  __host__ __device__ inline T operator[](unsigned gene) const {
+  __host__ __device__ inline T operator[](unsigned i) const {
+    // ** gl = guideStart and gr = guideEnd **
+    // gl <= i && i < gr == i - gl < gr - gl:
+    // i - gl will overflow if i < gl and then i - gl < gr - gl will be false
+    // => this only works if gl <= gr < 2^(#bits(typeof(gr)) - 1)
+    // => also gr - gl was already performed in the constructor
 #ifdef CUDA_ARCH
-    return population[chromosomeIndex * columnCount + gene];
+    return *(population
+             + (i - guideStart < guideEnd ? guideIndex : chromosomeIndex)
+                   * columnCount
+             + i);
 #else
-    return population[gene];
+    return *((i - guideStart < guideEnd ? guidePopulation : population) + i);
 #endif
   }
 
@@ -46,6 +74,13 @@ private:
   T* population;
   unsigned columnCount;
   unsigned chromosomeIndex;
+  unsigned guideIndex;
+  unsigned guideStart;
+  unsigned guideEnd;
+
+#ifndef CUDA_ARCH
+  T* guidePopulation;  // Used to speedup the population access on the CPU
+#endif  // CUDA_ARCH
 };
 
 template class Chromosome<float>;
