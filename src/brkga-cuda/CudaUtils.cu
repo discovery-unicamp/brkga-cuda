@@ -88,3 +88,28 @@ void box::cuda::segSort(cudaStream_t stream,
   bbSegSort(dKeys, dValues, segCount, segSize);
   CUDA_CHECK_LAST();
 }
+
+box::cuda::Timer::Timer() {
+  CUDA_CHECK(cudaEventCreate(&start));
+  CUDA_CHECK(cudaEventCreate(&stop));
+  reset();
+}
+
+box::cuda::Timer::~Timer() {
+  // noexcept = no CUDA_CHECK
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+}
+
+void box::cuda::Timer::reset() {
+  CUDA_CHECK(cudaEventRecord(start));
+}
+
+float box::cuda::Timer::milliseconds() {
+  CUDA_CHECK(cudaEventRecord(stop));
+  CUDA_CHECK(cudaEventSynchronize(stop));
+
+  float ms = -1;
+  CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
+  return ms;
+}

@@ -5,29 +5,13 @@
 #define LOG_LEVEL box::logger::_LogType::WARNING
 #endif  // LOG_LEVEL
 
-#include <iomanip>
 #include <iostream>
-#include <sstream>
-#include <string>
+#include <utility>
 #include <vector>
 
 namespace box {
-template <class T>
-std::string str(const std::vector<T>& v, const std::string& sep = ", ") {
-  std::stringstream ss;
-  ss << std::fixed << std::setprecision(6);
-  bool flag = false;
-  ss << '[';
-  for (auto& x : v) {
-    (flag ? ss << sep : ss) << x;
-    flag = true;
-  }
-  ss << ']';
-  return ss.str();
-}
-
 namespace logger {
-static std::ostream* stream = &std::clog;
+static std::ostream* logStream = &std::clog;
 
 enum _LogType { NONE = 0, ERROR, WARNING, INFO, DEBUG };
 
@@ -57,22 +41,22 @@ inline void _log(std::ostream& out,
 
 template <class... T>
 inline void error(const T&... args) {
-  if (LOG_LEVEL >= ERROR) _log(*stream, RED, "[  ERROR]", args...);
+  if (LOG_LEVEL >= ERROR) _log(*logStream, RED, "[  ERROR]", args...);
 }
 
 template <class... T>
 inline void warning(const T&... args) {
-  if (LOG_LEVEL >= WARNING) _log(*stream, YELLOW, "[WARNING]", args...);
+  if (LOG_LEVEL >= WARNING) _log(*logStream, YELLOW, "[WARNING]", args...);
 }
 
 template <class... T>
 inline void info(const T&... args) {
-  if (LOG_LEVEL >= INFO) _log(*stream, GREEN, "[   INFO]", args...);
+  if (LOG_LEVEL >= INFO) _log(*logStream, GREEN, "[   INFO]", args...);
 }
 
 template <class... T>
 inline void debug(const T&... args) {
-  if (LOG_LEVEL >= DEBUG) _log(*stream, BLUE, "[  DEBUG]", args...);
+  if (LOG_LEVEL >= DEBUG) _log(*logStream, BLUE, "[  DEBUG]", args...);
 }
 }  // namespace logger
 }  // namespace box

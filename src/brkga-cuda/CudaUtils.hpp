@@ -273,6 +273,19 @@ void segSort(cudaStream_t stream,
              std::size_t size,
              std::size_t step);
 
+class Timer {
+public:
+  Timer();
+  ~Timer();
+
+  void reset();
+  float milliseconds();
+
+private:
+  cudaEvent_t start;
+  cudaEvent_t stop;
+};
+
 template <class T>
 class Matrix {
 public:
