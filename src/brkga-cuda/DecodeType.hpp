@@ -1,6 +1,7 @@
 #ifndef BRKGA_CUDA_DECODE_TYPE_HPP
 #define BRKGA_CUDA_DECODE_TYPE_HPP
 
+#include <ostream>
 #include <stdexcept>
 #include <string>
 
@@ -28,5 +29,11 @@ private:
   bool _all;
 };
 }  // namespace box
+
+namespace std {
+inline ostream& operator<<(ostream& out, const box::DecodeType& dt) {
+  return out << dt.str();
+}
+}  // namespace std
 
 #endif  // BRKGA_CUDA_DECODE_TYPE_HPP

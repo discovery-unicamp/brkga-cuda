@@ -44,6 +44,20 @@ public:
   void exchangeElite(unsigned count);
 
   /**
+   * Run the (implicit) Path Relinking algorithm between pairs of chromosomes.
+   *
+   * Divides the @p base and the @p guide into the blocks [0, @p blockSize),
+   * [@p blockSize, 2 * @p blockSize), ..., and replaces the best block on the
+   * @p base with the corresponding block on the @p guide. The method is
+   * repeated until it doesn't improve the solution.
+   *
+   * @param base The chromosome to copy the values to.
+   * @param guide The chromosome to copy the values from.
+   * @param blockSize The number of genes to be changed in a single operation.
+   */
+  void runPathRelinking(unsigned base, unsigned guide, unsigned blockSize);
+
+  /**
    * Get the fitness of the best chromosome found so far.
    *
    * This operation blocks the CPU until it is finished.
