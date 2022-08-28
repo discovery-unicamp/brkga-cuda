@@ -280,6 +280,7 @@ public:
 
   void reset();
   float milliseconds();
+  float seconds();
 
 private:
   cudaEvent_t start;

@@ -113,3 +113,7 @@ float box::cuda::Timer::milliseconds() {
   CUDA_CHECK(cudaEventElapsedTime(&ms, start, stop));
   return ms;
 }
+
+float box::cuda::Timer::seconds() {
+  return milliseconds() / 1000;
+}
