@@ -7,6 +7,7 @@
 
 #include <curand.h>  // TODO check if this header is required here
 
+#include <utility>
 #include <vector>
 
 namespace box {
@@ -46,16 +47,16 @@ public:
   /**
    * Run the (implicit) Path Relinking algorithm between pairs of chromosomes.
    *
-   * Divides the @p base and the @p guide into the blocks [0, @p blockSize),
+   * Divides the base and theguide into the blocks [0, @p blockSize),
    * [@p blockSize, 2 * @p blockSize), ..., and replaces the best block on the
-   * @p base with the corresponding block on the @p guide. The method is
+   * base with the corresponding block on theguide. The method is
    * repeated until it doesn't improve the solution.
    *
-   * @param base The chromosome to copy the values to.
-   * @param guide The chromosome to copy the values from.
+   * @param pairs The chromosomes to use as base (.first) and guide (.second).
    * @param blockSize The number of genes to be changed in a single operation.
    */
-  void runPathRelinking(unsigned base, unsigned guide, unsigned blockSize);
+  void runPathRelinking(std::vector<std::pair<unsigned, unsigned>> pairs,
+                        unsigned blockSize);
 
   /**
    * Get the fitness of the best chromosome found so far.
