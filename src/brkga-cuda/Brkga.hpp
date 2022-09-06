@@ -10,6 +10,11 @@
 #include <utility>
 #include <vector>
 
+struct DecodedChromosome {
+  float fitness;
+  std::vector<float> genes;
+};
+
 namespace box {
 class DecodeType;
 class Decoder;
@@ -46,17 +51,9 @@ public:
 
   /**
    * Run the (implicit) Path Relinking algorithm between pairs of chromosomes.
-   *
-   * Divides the base and theguide into the blocks [0, @p blockSize),
-   * [@p blockSize, 2 * @p blockSize), ..., and replaces the best block on the
-   * base with the corresponding block on theguide. The method is
-   * repeated until it doesn't improve the solution.
-   *
-   * @param pairs The chromosomes to use as base (.first) and guide (.second).
-   * @param blockSize The number of genes to be changed in a single operation.
    */
-  void runPathRelinking(std::vector<std::pair<unsigned, unsigned>> pairs,
-                        unsigned blockSize);
+  void runPathRelinking();
+  DecodedChromosome pathRelinking(const unsigned base, const unsigned guide);
 
   /**
    * Get the fitness of the best chromosome found so far.
