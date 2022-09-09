@@ -10,9 +10,11 @@ enable_language(CUDA)
 include_directories(SYSTEM "${CUDA_INCLUDE_DIRS}")
 
 add_library(brkga-cuda
-  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/impl/BrkgaPathRelinking.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/PathRelinking.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/Filter.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaConfiguration.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaFilter.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Chromosome.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaUtils.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Decoder.cpp

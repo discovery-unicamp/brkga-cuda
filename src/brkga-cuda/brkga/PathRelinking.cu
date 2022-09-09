@@ -71,7 +71,7 @@ DecodedChromosome box::Brkga::pathRelinking(const unsigned base,
   assert(best.fitness > 0);
   box::logger::debug("Starting IPR with:", best.fitness);
 
-  const unsigned blockSize = std::max(1u, (unsigned)(chromosomeSize * 0.15));
+  const unsigned blockSize = std::max(1u, (unsigned)(chromosomeSize * 0.10));
   if (blockSize >= chromosomeSize)
     throw std::invalid_argument(
         "Block size should be less than the chromosome size otherwise"

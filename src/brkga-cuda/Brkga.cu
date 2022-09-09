@@ -206,7 +206,7 @@ void box::Brkga::updateFitness() {
       }
     }
 
-    fitness.resize(numberOfPopulations * populationSize * chromosomeSize);
+    fitness.resize(numberOfPopulations * populationSize);
   }
 
   logger::debug("Calling the decoder");

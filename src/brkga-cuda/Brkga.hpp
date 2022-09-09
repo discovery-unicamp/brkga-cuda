@@ -2,6 +2,7 @@
 #define BRKGACUDA_BRKGA_HPP
 
 #include "BrkgaConfiguration.hpp"
+#include "BrkgaFilter.hpp"
 #include "Chromosome.hpp"
 #include "CudaUtils.hpp"
 
@@ -21,31 +22,31 @@ class Decoder;
 
 class Brkga {
 public:
-  /**
-   * Construct a new Brkga object.
-   *
-   * @param config The configuration to run the algorithm.
-   */
+  void printStatus();
+
+  /// Construct a new Brkga object.
   Brkga(const BrkgaConfiguration& config);
 
-  /// Releases memory
+  /// Releases memory.
   ~Brkga();
 
-  /**
-   * Evolve the population to the next generation.
-   */
+  /// Evolve the population to the next generation.
   void evolve();
+
+  /// For each pair of elites, remove the worse of them if \p filter is true.
+  /// TODO add support to device objects
+  void removeSimilarElites(const FilterBase& filter);
 
   /**
    * Copy the elites from/to all populations.
    *
-   * This method will simply copy the @p count elites from one population to all
+   * This method will simply copy the \p count elites from one population to all
    * the others. It will not copy to the same population, which avoids
    * generating duplicated chromsomes.
    *
    * This operation blocks the CPU until it is finished.
    *
-   * @param count The number of elites to copy from each population.
+   * \param count The number of elites to copy from each population.
    */
   void exchangeElite(unsigned count);
 
@@ -55,32 +56,14 @@ public:
   void runPathRelinking();
   DecodedChromosome pathRelinking(const unsigned base, const unsigned guide);
 
-  /**
-   * Get the fitness of the best chromosome found so far.
-   *
-   * This operation blocks the CPU until it is finished.
-   *
-   * @return The fitness of the best chromsome.
-   */
+  /// Get the fitness of the best chromosome found so far.
   float getBestFitness();
 
-  /**
-   * Get the best chromosome.
-   *
-   * This operation blocks the CPU until it is finished.
-   *
-   * @return The best chromsome.
-   */
+  /// Get the genes of the best chromosome found so far.
   std::vector<float> getBestChromosome();
 
-  /**
-   * Get the best chromosome when sorted.
-   *
-   * This operation blocks the CPU until it is finished.
-   *
-   * @return The best chromsome when sorted.
-   * @throw `std::runtime_error` If the decode type is a non-sorted one.
-   */
+  /// Get the permutation of the best chromosome found so far.
+  /// \throw `std::runtime_error` If the decode type is a non-sorted one.
   std::vector<unsigned> getBestPermutation();
 
 private:
@@ -92,7 +75,7 @@ private:
   /**
    * Call the decode method to the population `p`.
    *
-   * @param p The index of the population to decode.
+   * \param p The index of the population to decode.
    */
   void decodePopulation(unsigned p);
 
