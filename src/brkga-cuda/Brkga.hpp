@@ -11,9 +11,10 @@
 #include <utility>
 #include <vector>
 
+// FIXME create a clear declaration of this structure
 struct DecodedChromosome {
   float fitness;
-  std::vector<float> genes;
+  std::vector<float> genes;  // FIXME create a typedef for the gene type
 };
 
 namespace box {
@@ -22,10 +23,15 @@ class Decoder;
 
 class Brkga {
 public:
+  // FIXME remove this method
   void printStatus();
 
+  // FIXME update how we handle the initialPopulation
+  // FIXME add option to set device chromosomes
+  // TODO how to expose a chromosome to the decoder and another for interaction?
   /// Construct a new Brkga object.
-  Brkga(const BrkgaConfiguration& config);
+  Brkga(const BrkgaConfiguration& config,
+        const std::vector<std::vector<std::vector<float>>>& initialPopulation);
 
   /// Releases memory.
   ~Brkga();
@@ -42,7 +48,7 @@ public:
    *
    * This method will simply copy the \p count elites from one population to all
    * the others. It will not copy to the same population, which avoids
-   * generating duplicated chromsomes.
+   * generating duplicated chromosomes.
    *
    * This operation blocks the CPU until it is finished.
    *
@@ -56,6 +62,7 @@ public:
   void runPathRelinking();
   DecodedChromosome pathRelinking(const unsigned base, const unsigned guide);
 
+  // TODO how to handle any type provided by the user without templates?
   /// Get the fitness of the best chromosome found so far.
   float getBestFitness();
 
@@ -65,6 +72,8 @@ public:
   /// Get the permutation of the best chromosome found so far.
   /// \throw `std::runtime_error` If the decode type is a non-sorted one.
   std::vector<unsigned> getBestPermutation();
+
+  std::vector<DecodedChromosome> getPopulation(unsigned p);
 
 private:
   std::pair<unsigned, unsigned> getBest();
@@ -95,7 +104,7 @@ private:
   template <class T>
   Chromosome<T>* wrapGpu(T* pop, unsigned popId, unsigned n);
 
-  /// The main stream to run the operations indenpendently
+  /// The main stream to run the operations independently
   constexpr static cudaStream_t defaultStream = nullptr;
 
   Decoder* decoder;  /// The decoder of the problem

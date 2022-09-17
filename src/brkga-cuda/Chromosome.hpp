@@ -32,7 +32,7 @@ public:
     assert(guideEnd < (1u << (8 * sizeof(unsigned) - 1)));
 
 // TODO define GPU specific code to access the transposed matrix
-#ifndef CUDA_ARCH
+#ifndef __CUDA_ARCH__
     // Add an offset to the first gene of the chromosome
     guidePopulation = _population + guideIndex * columnCount;
     population += chromosomeIndex * columnCount;
@@ -40,9 +40,9 @@ public:
 
     if (guideStart >= guideEnd) {
       guideStart = guideEnd = 0;
-#ifndef CUDA_ARCH
+#ifndef __CUDA_ARCH__
       guidePopulation = nullptr;
-#endif  // CUDA_ARCH
+#endif  // __CUDA_ARCH__
     } else {
       guideEnd -= guideStart;
     }
@@ -54,7 +54,7 @@ public:
     // i - gl will overflow if i < gl and then i - gl < gr - gl will be false
     // => this only works if gl <= gr < 2^(#bits(typeof(gr)) - 1)
     // => also gr - gl was already performed in the constructor
-#ifdef CUDA_ARCH
+#ifdef __CUDA_ARCH__
     return *(population
              + (i - guideStart < guideEnd ? guideIndex : chromosomeIndex)
                    * columnCount
@@ -78,9 +78,9 @@ private:
   unsigned guideStart;
   unsigned guideEnd;
 
-#ifndef CUDA_ARCH
+#ifndef __CUDA_ARCH__
   T* guidePopulation;  // Used to speedup the population access on the CPU
-#endif  // CUDA_ARCH
+#endif  // __CUDA_ARCH__
 };
 
 template class Chromosome<float>;

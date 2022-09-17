@@ -16,7 +16,9 @@
 #include <string>
 #include <vector>
 
-box::Brkga::Brkga(const BrkgaConfiguration& config)
+box::Brkga::Brkga(
+    const BrkgaConfiguration& config,
+    const std::vector<std::vector<std::vector<float>>>& initialPopulation)
     : dPopulation(config.numberOfPopulations,
                   config.populationSize * config.chromosomeLength),
       dPopulationTemp(config.numberOfPopulations,
@@ -29,10 +31,15 @@ box::Brkga::Brkga(const BrkgaConfiguration& config)
       dRandomEliteParent(config.numberOfPopulations, config.populationSize),
       dRandomParent(config.numberOfPopulations, config.populationSize) {
   CUDA_CHECK_LAST();
-  logger::info("Building BoxBrkga with", config.numberOfPopulations,
-               "populations, each with", config.populationSize,
-               "chromosomes of length", config.chromosomeLength);
-  logger::info("Selected decoder:", config.decodeType.str());
+  logger::debug("Building BoxBrkga with", config.numberOfPopulations,
+                "populations, each with", config.populationSize,
+                "chromosomes of length", config.chromosomeLength);
+  logger::debug("Selected decoder:", config.decodeType.str());
+
+  if (initialPopulation.size() > config.numberOfPopulations) {
+    throw std::invalid_argument(
+        "Initial population cannot have more chromosomes than population size");
+  }
 
   // TODO save only the configuration class
   decoder = config.decoder;
@@ -66,10 +73,32 @@ box::Brkga::Brkga(const BrkgaConfiguration& config)
   for (unsigned p = 0; p < numberOfPopulations; ++p)
     generators[p] = cuda::allocRandomGenerator(uid(rng));
 
-  logger::debug("Building the initial populations");
-  for (unsigned p = 0; p < numberOfPopulations; ++p)
-    cuda::random(streams[p], generators[p], dPopulation.row(p),
-                 populationSize * chromosomeSize);
+  // FIXME generate according to this log
+  // logger::debug("Use", initialPopulation.size(),
+  //               "provided populations and generate",
+  //               numberOfPopulations - initialPopulation.size());
+
+  // TODO handle population with number of chromosomes != population size
+
+  if (initialPopulation.empty()) {
+    logger::debug("Building the initial populations");
+    for (unsigned p = 0; p < numberOfPopulations; ++p)
+      cuda::random(streams[p], generators[p], dPopulation.row(p),
+                   populationSize * chromosomeSize);
+  } else {
+    logger::debug("Using the provided initial populations");
+    assert(initialPopulation.size() == numberOfPopulations);  // FIXME
+    for (unsigned p = 0; p < numberOfPopulations; ++p) {
+      std::vector<float> chromosomes;
+      for (unsigned i = 0; i < initialPopulation[p].size(); ++i) {
+        const auto& ch = initialPopulation[p][i];
+        assert(ch.size() == chromosomeSize);
+        chromosomes.insert(chromosomes.end(), ch.begin(), ch.end());
+      }
+      cuda::copy2d(streams[p], dPopulation.row(p), chromosomes.data(),
+                   chromosomes.size());
+    }
+  }
 
   updateFitness();
   logger::debug("Brkga was configured successfully");
@@ -457,6 +486,28 @@ std::pair<unsigned, unsigned> box::Brkga::getBest() {
                 bestPopulation, "and chromosome", bestChromosome);
 
   return {bestPopulation, bestChromosome};
+}
+
+std::vector<DecodedChromosome> box::Brkga::getPopulation(unsigned p) {
+  std::vector<float> hFitness(populationSize);
+  box::cuda::copy2h(streams[p], hFitness.data(), dFitness.row(p), populationSize);
+
+  std::vector<unsigned> hFitnessIdx(populationSize);
+  box::cuda::copy2h(streams[p], hFitnessIdx.data(), dFitnessIdx.row(p),
+               populationSize);
+
+  std::vector<float> hChromosomes(populationSize * chromosomeSize);
+  box::cuda::copy2h(streams[p], hChromosomes.data(), dPopulation.row(p),
+               populationSize * chromosomeSize);
+
+  std::vector<DecodedChromosome> decoded;
+  for (unsigned i = 0; i < populationSize; ++i) {
+    const auto ptr = hChromosomes.begin() + hFitnessIdx[i] * chromosomeSize;
+    decoded.push_back(DecodedChromosome{
+        fitness[i], std::vector<float>(ptr, ptr + chromosomeSize)});
+  }
+
+  return decoded;
 }
 
 void box::Brkga::syncStreams() {
