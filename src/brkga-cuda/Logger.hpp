@@ -16,10 +16,10 @@ static std::ostream* logStream = &std::clog;
 enum _LogType { NONE = 0, ERROR, WARNING, INFO, DEBUG };
 
 static const char* RESET = "\033[0m";
-static const char* RED = "\033[31m";
-static const char* GREEN = "\033[32m";
-static const char* YELLOW = "\033[33m";
-static const char* BLUE = "\033[34m";
+static const char* BLACK = "\033[0;30m";
+static const char* CYAN = "\033[0;36m";
+static const char* RED = "\033[0;31m";
+static const char* YELLOW = "\033[0;33m";
 
 inline void _log_impl(std::ostream&) {}
 
@@ -51,12 +51,12 @@ inline void warning(const T&... args) {
 
 template <class... T>
 inline void info(const T&... args) {
-  if (LOG_LEVEL >= INFO) _log(*logStream, GREEN, "[   INFO]", args...);
+  if (LOG_LEVEL >= INFO) _log(*logStream, CYAN, "[   INFO]", args...);
 }
 
 template <class... T>
 inline void debug(const T&... args) {
-  if (LOG_LEVEL >= DEBUG) _log(*logStream, BLUE, "[  DEBUG]", args...);
+  if (LOG_LEVEL >= DEBUG) _log(*logStream, BLACK, "[  DEBUG]", args...);
 }
 }  // namespace logger
 }  // namespace box
