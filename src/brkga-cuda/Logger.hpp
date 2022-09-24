@@ -6,8 +6,7 @@
 #endif  // LOG_LEVEL
 
 #include <iostream>
-#include <utility>
-#include <vector>
+#include <string>
 
 namespace box {
 namespace logger {
@@ -30,33 +29,59 @@ inline void _log_impl(std::ostream& out, const T& x, const U&... y) {
 }
 
 template <class... T>
-inline void _log(std::ostream& out,
+inline void _log(const char end,
+                 std::ostream& out,
                  const char* color,
                  const char* type,
                  const T&... x) {
   out << color << type;
   _log_impl(out, x...);
-  out << RESET << std::endl;  // Use std::endl to avoid missing any log.
+  out << RESET << end << std::flush;  // std::flush to avoid missing any log
+}
+
+template <class... T>
+inline void pbar(double completed,
+                 unsigned length,
+                 bool ended,
+                 const T&... args) {
+  if (completed < 0)
+    completed = 0.0;
+  else if (completed > 1)
+    completed = 1.0;
+
+  char str[10];
+  snprintf(str, sizeof(str), "[%6.1lf%%]", 100 * completed);
+
+  const auto filled = (unsigned)(completed * length + 1e-6);
+  std::string progress(filled, '=');
+  if (filled < length) {
+    progress += ">";
+    progress += std::string(length - filled - 1, ' ');
+  }
+  progress = "[" + progress + "]";
+
+  _log((ended ? '\n' : '\r'), *logStream, RED, str, progress, args...);
 }
 
 template <class... T>
 inline void error(const T&... args) {
-  if (LOG_LEVEL >= ERROR) _log(*logStream, RED, "[  ERROR]", args...);
+  if (LOG_LEVEL >= ERROR) _log('\n', *logStream, RED, "[  ERROR]", args...);
 }
 
 template <class... T>
 inline void warning(const T&... args) {
-  if (LOG_LEVEL >= WARNING) _log(*logStream, YELLOW, "[WARNING]", args...);
+  if (LOG_LEVEL >= WARNING)
+    _log('\n', *logStream, YELLOW, "[WARNING]", args...);
 }
 
 template <class... T>
 inline void info(const T&... args) {
-  if (LOG_LEVEL >= INFO) _log(*logStream, CYAN, "[   INFO]", args...);
+  if (LOG_LEVEL >= INFO) _log('\n', *logStream, CYAN, "[   INFO]", args...);
 }
 
 template <class... T>
 inline void debug(const T&... args) {
-  if (LOG_LEVEL >= DEBUG) _log(*logStream, BLACK, "[  DEBUG]", args...);
+  if (LOG_LEVEL >= DEBUG) _log('\n', *logStream, BLACK, "[  DEBUG]", args...);
 }
 }  // namespace logger
 }  // namespace box
