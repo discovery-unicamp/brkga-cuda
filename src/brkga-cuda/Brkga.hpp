@@ -68,7 +68,8 @@ public:
   inline void runPathRelink(unsigned blockSize,
                             const F& selectMethod,
                             const Args&... args) {
-    runPathRelink(selectMethod(numberOfPopulations, eliteSize, args...));
+    runPathRelink(blockSize,
+                  selectMethod(numberOfPopulations, eliteSize, args...));
   }
 
   void runPathRelink(unsigned blockSize,

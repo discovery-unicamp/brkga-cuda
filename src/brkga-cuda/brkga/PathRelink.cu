@@ -12,6 +12,7 @@
 #include <numeric>
 #include <random>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -48,11 +49,6 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
                                           const unsigned guide) {
   box::logger::debug("Running Path Relink with", base, "and", guide);
 
-  if (blockSize >= chromosomeSize)
-    throw std::invalid_argument(
-        "Block size should be less than the chromosome size otherwise"
-        " Path Relink will do nothing");
-
   auto dChromosome = cuda::alloc<float>(nullptr, 2 * chromosomeSize);
   copyChromosome<<<cuda::blocks(chromosomeSize, threadsPerBlock),
                    threadsPerBlock>>>(dChromosome, base, dPopulation.get(),
@@ -75,7 +71,7 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   populationWrapper[0] = Chromosome<float>(bestGenes.data(), chromosomeSize, 0);
   decoder->decode(1, populationWrapper, &bestFitness);
   assert(bestFitness > 0);
-  box::logger::debug("Starting IPR with:", bestFitness);
+  box::logger::debug("Starting Path Relink with:", bestFitness);
 
   const auto numberOfSegments = (chromosomeSize + blockSize - 1) / blockSize;
   box::logger::debug("Number of blocks to process:", numberOfSegments);
@@ -121,7 +117,7 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
     id ^= 1;  // "Swap" the base and the guide chromosome
   }
 
-  box::logger::debug("IPR finished with:", bestFitness);
+  box::logger::debug("Path Relink finished with:", bestFitness);
 
   cuda::free(nullptr, dChromosome);
   return bestGenes;
@@ -134,11 +130,20 @@ void box::Brkga::runPathRelink(unsigned blockSize,
   // TODO ensure population wrapper has enough capacity
   // TODO can we implement this for the permutation without sorting every time?
 
+  box::logger::debug("Run Path Relink between", pairList.size(), "pairs");
+
   // FIXME add support to gpu/permutation
   assert(decodeType.onCpu());
   assert(decodeType.chromosome());
 
-  box::logger::debug("Run Path Relink between", pairList.size(), "pairs");
+  if (blockSize < 1)
+    throw std::invalid_argument("Invalid block size: "
+                                + std::to_string(blockSize));
+  if (blockSize >= chromosomeSize)
+    throw std::invalid_argument(
+        "Block size should be less than the chromosome size otherwise"
+        " Path Relink will do nothing");
+
   for (const auto& pair : pairList) {
     if (pair.basePopulationId >= numberOfPopulations)
       throw std::invalid_argument("Invalid base population");
