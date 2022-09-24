@@ -77,7 +77,7 @@ box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::eliteCount(
 }
 
 box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::eliteProportion(float p) {
+box::BrkgaConfiguration::Builder::eliteFactor(float p) {
   if (p <= 0 || p >= 1)
     throw std::invalid_argument("Elite proportion should be in range (0, 1)");
   return eliteCount((unsigned)(p * (float)_populationSize));
@@ -95,7 +95,7 @@ box::BrkgaConfiguration::Builder::mutantsCount(unsigned n) {
 }
 
 box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::mutantsProportion(float p) {
+box::BrkgaConfiguration::Builder::mutantsFactor(float p) {
   if (p <= 0 || p >= 1)
     throw std::invalid_argument("Mutant proportion should be in range (0, 1)");
   return mutantsCount((unsigned)(p * (float)_populationSize));

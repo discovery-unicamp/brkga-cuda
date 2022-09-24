@@ -10,15 +10,26 @@ enable_language(CUDA)
 include_directories(SYSTEM "${CUDA_INCLUDE_DIRS}")
 
 add_library(brkga-cuda
-  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/PathRelinking.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/PathRelink.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/Filter.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaConfiguration.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaConfiguration.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaFilter.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaFilter.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Chromosome.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Chromosome.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaError.cuh
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaUtils.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaUtils.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Decoder.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Decoder.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/DecodeType.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/DecodeType.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Logger.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/PathRelinkPair.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/PathRelinkPair.hpp
 )
 
 set_target_properties(brkga-cuda PROPERTIES POSITION_INDEPENDENT_CODE ON)

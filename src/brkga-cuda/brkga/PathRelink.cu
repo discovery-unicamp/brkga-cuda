@@ -15,6 +15,8 @@
 #include <utility>
 #include <vector>
 
+// FIXME this is an experimental feature
+
 template <class T>
 __global__ void copyChromosome(T* dst,
                                const unsigned index,
@@ -41,41 +43,39 @@ __global__ void copyToDevice(T* dst,
   dst[sortedIndex * chromosomeLength + k] = src[k];
 }
 
-DecodedChromosome box::Brkga::pathRelinking(const unsigned base,
-                                            const unsigned guide) {
-  box::logger::debug("Running Path Relinking with", base, "and", guide);
+std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
+                                          const unsigned base,
+                                          const unsigned guide) {
+  box::logger::debug("Running Path Relink with", base, "and", guide);
 
-  auto dChromosomes = cuda::alloc<float>(nullptr, 2 * chromosomeSize);
+  if (blockSize >= chromosomeSize)
+    throw std::invalid_argument(
+        "Block size should be less than the chromosome size otherwise"
+        " Path Relink will do nothing");
+
+  auto dChromosome = cuda::alloc<float>(nullptr, 2 * chromosomeSize);
   copyChromosome<<<cuda::blocks(chromosomeSize, threadsPerBlock),
-                   threadsPerBlock>>>(dChromosomes, base, dPopulation.get(),
+                   threadsPerBlock>>>(dChromosome, base, dPopulation.get(),
                                       chromosomeSize, dFitnessIdx.get());
   CUDA_CHECK_LAST();
   copyChromosome<<<cuda::blocks(chromosomeSize, threadsPerBlock),
-                   threadsPerBlock>>>(dChromosomes + chromosomeSize, guide,
+                   threadsPerBlock>>>(dChromosome + chromosomeSize, guide,
                                       dPopulation.get(), chromosomeSize,
                                       dFitnessIdx.get());
   CUDA_CHECK_LAST();
 
   std::vector<float> chromosomes(2 * chromosomeSize);
-  cuda::copy2h(nullptr, chromosomes.data(), dChromosomes, 2 * chromosomeSize);
+  cuda::copy2h(nullptr, chromosomes.data(), dChromosome, 2 * chromosomeSize);
   cuda::sync();
 
-  DecodedChromosome best;
-  best.fitness = -1;
-  best.genes = std::vector<float>(chromosomes.begin(),
-                                  chromosomes.begin() + chromosomeSize);
+  float bestFitness = -1;
+  std::vector<float> bestGenes(chromosomes.begin(),
+                               chromosomes.begin() + chromosomeSize);
 
-  populationWrapper[0] =
-      Chromosome<float>(best.genes.data(), chromosomeSize, 0);
-  decoder->decode(1, populationWrapper, &best.fitness);
-  assert(best.fitness > 0);
-  box::logger::debug("Starting IPR with:", best.fitness);
-
-  const unsigned blockSize = std::max(1u, (unsigned)(chromosomeSize * 0.10));
-  if (blockSize >= chromosomeSize)
-    throw std::invalid_argument(
-        "Block size should be less than the chromosome size otherwise"
-        " Path Relinking will do nothing");
+  populationWrapper[0] = Chromosome<float>(bestGenes.data(), chromosomeSize, 0);
+  decoder->decode(1, populationWrapper, &bestFitness);
+  assert(bestFitness > 0);
+  box::logger::debug("Starting IPR with:", bestFitness);
 
   const auto numberOfSegments = (chromosomeSize + blockSize - 1) / blockSize;
   box::logger::debug("Number of blocks to process:", numberOfSegments);
@@ -89,7 +89,6 @@ DecodedChromosome box::Brkga::pathRelinking(const unsigned base,
       const auto l = b * blockSize;
       const auto r = l + blockSize;  // Overflow will never happen here
       assert(l < chromosomeSize);
-      assert(j < numberOfPopulations * populationSize);  // overflow!
       populationWrapper[j] =
           Chromosome<float>(chromosomes.data(), chromosomeSize, /* base: */ id,
                             /* guide: */ (id ^ 1), l, r);
@@ -102,7 +101,7 @@ DecodedChromosome box::Brkga::pathRelinking(const unsigned base,
       if (fitness[j] < fitness[bestIdx]) bestIdx = j;
     }
     box::logger::debug("PR moved to:", fitness[bestIdx],
-                       "-- incumbent:", best.fitness);
+                       "-- incumbent:", bestFitness);
 
     const auto baseBegin = chromosomes.begin() + id * chromosomeSize;
     const auto guideBegin = chromosomes.begin() + (id ^ 1) * chromosomeSize;
@@ -113,58 +112,76 @@ DecodedChromosome box::Brkga::pathRelinking(const unsigned base,
     auto itTo = baseBegin + changeOffset;
     std::copy(itFrom, itFrom + bs, itTo);
 
-    if (fitness[bestIdx] < best.fitness) {
-      best.fitness = fitness[bestIdx];
-      std::copy(baseBegin, baseBegin + chromosomeSize, best.genes.begin());
+    if (fitness[bestIdx] < bestFitness) {
+      bestFitness = fitness[bestIdx];
+      std::copy(baseBegin, baseBegin + chromosomeSize, bestGenes.begin());
     }
 
-    std::swap(blocks[bestIdx], blocks[i - 1]);  // "erase" the block used
+    std::swap(blocks[bestIdx], blocks[i - 1]);  // "Erase" the block used
     id ^= 1;  // "Swap" the base and the guide chromosome
   }
 
-  box::logger::debug("IPR finished with:", best.fitness);
+  box::logger::debug("IPR finished with:", bestFitness);
 
-  cuda::free(nullptr, dChromosomes);
-  return best;
+  cuda::free(nullptr, dChromosome);
+  return bestGenes;
 }
 
-void box::Brkga::runPathRelinking() {
+void box::Brkga::runPathRelink(unsigned blockSize,
+                               const std::vector<PathRelinkPair>& pairList) {
   // TODO move the chromosomes based on the order of their fitness (for GPU)
   //   is it really necessary to move now?
   // TODO ensure population wrapper has enough capacity
   // TODO can we implement this for the permutation without sorting every time?
 
-  // For a while
+  // FIXME add support to gpu/permutation
   assert(decodeType.onCpu());
   assert(decodeType.chromosome());
 
-  const auto geneCount = populationSize * chromosomeSize;
-  std::mt19937 rng(0);
-  std::uniform_int_distribution<unsigned> uid(0, eliteSize - 1);
-
-  for (unsigned p = 0; p < numberOfPopulations; ++p) {
-    const auto base = uid(rng) + p * geneCount;
-    const auto guide = uid(rng) + (p + 1) % numberOfPopulations * geneCount;
-
-    DecodedChromosome best = pathRelinking(base, guide);
-
-    // TODO use hamming distance/kendall tau to check if it should be included?
-    //   maybe give the user a method to filter "duplicated" chromsomes with
-    //   those methods
-    box::logger::debug("Copying the chromosome found back to the device");
-    auto dChromosomes = cuda::alloc<float>(nullptr, chromosomeSize);
-    cuda::copy2d(nullptr, dChromosomes, best.genes.data(), chromosomeSize);
-    const auto replacedChromosomeIndex = populationSize - 1;
-    copyToDevice<<<cuda::blocks(chromosomeSize, threadsPerBlock),
-                   threadsPerBlock>>>(dPopulation.row(p),
-                                      replacedChromosomeIndex, dChromosomes,
-                                      chromosomeSize, dFitnessIdx.row(p));
-    CUDA_CHECK_LAST();
-
-    cuda::free(nullptr, dChromosomes);
-    box::logger::debug("Finished processing the population", p);
+  box::logger::debug("Run Path Relink between", pairList.size(), "pairs");
+  for (const auto& pair : pairList) {
+    if (pair.basePopulationId >= numberOfPopulations)
+      throw std::invalid_argument("Invalid base population");
+    if (pair.guidePopulationId >= numberOfPopulations)
+      throw std::invalid_argument("Invalid guide population");
+    if (pair.baseChromosomeId >= populationSize)
+      throw std::invalid_argument("Invalid base chromosome");
+    if (pair.guideChromosomeId >= populationSize)
+      throw std::invalid_argument("Invalid guide chromosome");
   }
 
+  std::vector<unsigned> insertedCount(numberOfPopulations, 0);
+  auto dChromosome = cuda::alloc<float>(nullptr, chromosomeSize);
+
+  for (const auto& pair : pairList) {
+    const auto base =
+        pair.basePopulationId * populationSize + pair.baseChromosomeId;
+    const auto guide =
+        pair.guidePopulationId * populationSize + pair.guideChromosomeId;
+
+    const auto bestGenes = pathRelink(blockSize, base, guide);
+
+    // TODO use hamming distance/kendall tau to check if it should be included?
+    //   maybe give the user a method to filter "duplicated" chromosomes with
+    //   those methods
+
+    ++insertedCount[pair.basePopulationId];
+    assert(insertedCount[pair.basePopulationId] < populationSize - eliteSize);
+    const auto replacedChromosomeIndex =
+        populationSize - insertedCount[pair.basePopulationId];
+
+    box::logger::debug("Copying the chromosome found back to the device");
+    cuda::copy2d(nullptr, dChromosome, bestGenes.data(), chromosomeSize);
+    copyToDevice<<<cuda::blocks(chromosomeSize, threadsPerBlock),
+                   threadsPerBlock>>>(
+        dPopulation.row(pair.basePopulationId), replacedChromosomeIndex,
+        dChromosome, chromosomeSize, dFitnessIdx.row(pair.basePopulationId));
+    CUDA_CHECK_LAST();
+  }
+
+  cuda::free(nullptr, dChromosome);
+
+  // FIXME should decode only the new chromosomes, not the population
   updateFitness();
-  box::logger::debug("The (implicit) Path Relinking has finished");
+  box::logger::debug("The Path Relink has finished");
 }

@@ -6,6 +6,8 @@
 namespace box {
 class Decoder;
 
+// FIXME some parameters are not used inside the algorithm; should we keep them?
+
 class BrkgaConfiguration {
 public:
   class Builder {
@@ -20,9 +22,9 @@ public:
     Builder& populationSize(unsigned n);
     Builder& chromosomeLength(unsigned n);
     Builder& eliteCount(unsigned n);
-    Builder& eliteProportion(float p);
+    Builder& eliteFactor(float p);
     Builder& mutantsCount(unsigned n);
-    Builder& mutantsProportion(float p);
+    Builder& mutantsFactor(float p);
     Builder& rhoe(float r);
     Builder& seed(unsigned s);
     Builder& decodeType(DecodeType dt);

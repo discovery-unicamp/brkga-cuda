@@ -153,7 +153,6 @@ void box::Brkga::removeSimilarElites(const FilterBase& filter) {
            == populationSize);
   }
 
-  // FIXME
   logger::debug("Copying data to device");
   for (unsigned p = 0; p < numberOfPopulations; ++p) {
     cuda::copy2d(streams[p], dFitnessIdx.row(p),

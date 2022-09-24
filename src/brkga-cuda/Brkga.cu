@@ -244,6 +244,8 @@ void box::Brkga::updateFitness() {
     syncStreams();
   }
 
+  // FIXME this method will also decode the elites, which didn't change
+
   const auto n =
       (decodeType.allAtOnce() ? numberOfPopulations : 1) * populationSize;
   for (unsigned p = 0; p < numberOfPopulations; ++p) {
@@ -273,7 +275,7 @@ void box::Brkga::updateFitness() {
         decoder->decode(streams[p], n, wrap, dFitness.row(p));
       }
       CUDA_CHECK_LAST();
-      logger::debug("The decoder has finished");
+      logger::debug("The decoder kernel call has finished");
     }
 
     // Cannot sort all chromosomes since they come from different populations
@@ -490,15 +492,16 @@ std::pair<unsigned, unsigned> box::Brkga::getBest() {
 
 std::vector<DecodedChromosome> box::Brkga::getPopulation(unsigned p) {
   std::vector<float> hFitness(populationSize);
-  box::cuda::copy2h(streams[p], hFitness.data(), dFitness.row(p), populationSize);
+  box::cuda::copy2h(streams[p], hFitness.data(), dFitness.row(p),
+                    populationSize);
 
   std::vector<unsigned> hFitnessIdx(populationSize);
   box::cuda::copy2h(streams[p], hFitnessIdx.data(), dFitnessIdx.row(p),
-               populationSize);
+                    populationSize);
 
   std::vector<float> hChromosomes(populationSize * chromosomeSize);
   box::cuda::copy2h(streams[p], hChromosomes.data(), dPopulation.row(p),
-               populationSize * chromosomeSize);
+                    populationSize * chromosomeSize);
 
   std::vector<DecodedChromosome> decoded;
   for (unsigned i = 0; i < populationSize; ++i) {

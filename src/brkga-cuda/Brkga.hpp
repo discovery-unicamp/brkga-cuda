@@ -5,6 +5,7 @@
 #include "BrkgaFilter.hpp"
 #include "Chromosome.hpp"
 #include "CudaUtils.hpp"
+#include "PathRelinkPair.hpp"
 
 #include <curand.h>  // TODO check if this header is required here
 
@@ -20,6 +21,10 @@ struct DecodedChromosome {
 namespace box {
 class DecodeType;
 class Decoder;
+
+// FIXME use this typedef
+// typedef float Fitness;
+// typedef float Gene;
 
 class Brkga {
 public:
@@ -56,11 +61,23 @@ public:
    */
   void exchangeElite(unsigned count);
 
-  /**
-   * Run the (implicit) Path Relinking algorithm between pairs of chromosomes.
-   */
-  void runPathRelinking();
-  DecodedChromosome pathRelinking(const unsigned base, const unsigned guide);
+  // FIXME this is temporary
+  // @{
+  /// Run the Path Relink algorithm between pairs of chromosomes.
+  template <typename F, typename... Args>
+  inline void runPathRelink(unsigned blockSize,
+                            const F& selectMethod,
+                            const Args&... args) {
+    runPathRelink(selectMethod(numberOfPopulations, eliteSize, args...));
+  }
+
+  void runPathRelink(unsigned blockSize,
+                     const std::vector<PathRelinkPair>& pairList);
+
+  std::vector<float> pathRelink(unsigned blockSize,
+                                unsigned base,
+                                unsigned guide);
+  // @} # temporary code
 
   // TODO how to handle any type provided by the user without templates?
   /// Get the fitness of the best chromosome found so far.
