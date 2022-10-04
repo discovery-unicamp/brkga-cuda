@@ -31,6 +31,14 @@ __global__ void copyChromosome(T* dst,
   dst[k] = src[sortedIndex * chromosomeLength + k];
 }
 
+__global__ void copyFitness(float* fitness,
+                            unsigned index,
+                            float* dFitness,
+                            unsigned* dFitnessIdx) {
+  const auto sortedIndex = dFitnessIdx[index];
+  *fitness = dFitness[sortedIndex];
+}
+
 template <class T>
 __global__ void copyToDevice(T* dst,
                              const unsigned index,
@@ -44,33 +52,76 @@ __global__ void copyToDevice(T* dst,
   dst[sortedIndex * chromosomeLength + k] = src[k];
 }
 
+template <class T>
+__host__ __device__ void setupBlock(unsigned j,
+                                    box::Chromosome<T>* wrapper,
+                                    T* chromosomes,
+                                    const unsigned* blocks,
+                                    unsigned blockSize,
+                                    unsigned chromosomeSize,
+                                    unsigned id) {
+  const auto b = blocks[j];
+  const auto l = b * blockSize;
+  const auto r = l + blockSize;  // Overflow will never happen here
+  assert(l < chromosomeSize);
+  wrapper[j] =
+      box::Chromosome<float>(chromosomes, chromosomeSize, /* base: */ id,
+                             /* guide: */ (id ^ 1), l, r);
+}
+
+template <class T>
+__global__ void buildBlocksKernel(box::Chromosome<T>* wrapper,
+                                  T* chromosomes,
+                                  const unsigned* blocks,
+                                  unsigned blockSize,
+                                  unsigned chromosomeSize,
+                                  unsigned id) {
+  const auto j = blockIdx.x * blockDim.x + threadIdx.x;
+  setupBlock(j, wrapper, chromosomes, blocks, blockSize, chromosomeSize, id);
+}
+
+template <class T>
+void buildBlocks(unsigned n,
+                 box::Chromosome<T>* wrapper,
+                 T* chromosomes,
+                 const unsigned* blocks,
+                 unsigned blockSize,
+                 unsigned chromosomeSize,
+                 unsigned id) {
+  for (unsigned j = 0; j < n; ++j)
+    setupBlock(j, wrapper, chromosomes, blocks, blockSize, chromosomeSize, id);
+}
+
 std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
                                           const unsigned base,
                                           const unsigned guide) {
+  assert(blockSize > 0);
   box::logger::debug("Running Path Relink with", base, "and", guide);
 
-  auto dChromosome = cuda::alloc<float>(nullptr, 2 * chromosomeSize);
+  auto dChromosomes = cuda::alloc<float>(nullptr, 2 * chromosomeSize);
   copyChromosome<<<cuda::blocks(chromosomeSize, threadsPerBlock),
-                   threadsPerBlock>>>(dChromosome, base, dPopulation.get(),
+                   threadsPerBlock>>>(dChromosomes, base, dPopulation.get(),
                                       chromosomeSize, dFitnessIdx.get());
   CUDA_CHECK_LAST();
   copyChromosome<<<cuda::blocks(chromosomeSize, threadsPerBlock),
-                   threadsPerBlock>>>(dChromosome + chromosomeSize, guide,
+                   threadsPerBlock>>>(dChromosomes + chromosomeSize, guide,
                                       dPopulation.get(), chromosomeSize,
                                       dFitnessIdx.get());
   CUDA_CHECK_LAST();
 
   std::vector<float> chromosomes(2 * chromosomeSize);
-  cuda::copy2h(nullptr, chromosomes.data(), dChromosome, 2 * chromosomeSize);
+  cuda::copy2h(nullptr, chromosomes.data(), dChromosomes, 2 * chromosomeSize);
   cuda::sync();
 
-  float bestFitness = -1;
   std::vector<float> bestGenes(chromosomes.begin(),
                                chromosomes.begin() + chromosomeSize);
 
-  populationWrapper[0] = Chromosome<float>(bestGenes.data(), chromosomeSize, 0);
-  decoder->decode(1, populationWrapper, &bestFitness);
-  assert(bestFitness > 0);
+  auto* dBestFitness = cuda::alloc<float>(nullptr, 1);
+  copyFitness<<<1, 1>>>(dBestFitness, base, dFitness.get(), dFitnessIdx.get());
+  CUDA_CHECK_LAST();
+  float bestFitness = -1e30f;
+  cuda::copy2h(nullptr, &bestFitness, dBestFitness, 1);
+  cuda::free(nullptr, dBestFitness);
   box::logger::debug("Starting Path Relink with:", bestFitness);
 
   const auto numberOfSegments = (chromosomeSize + blockSize - 1) / blockSize;
@@ -78,19 +129,32 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   std::vector<unsigned> blocks(numberOfSegments);
   std::iota(blocks.begin(), blocks.end(), 0);
 
+  fitness.resize(numberOfSegments);
+
+  unsigned* dBlocks = nullptr;
+  float* dFitness = nullptr;
+  if (!decodeType.onCpu()) {
+    dBlocks = cuda::alloc<unsigned>(nullptr, numberOfSegments);
+    dFitness = cuda::alloc<float>(nullptr, numberOfSegments);
+  }
+
   unsigned id = 0;
   for (unsigned i = numberOfSegments; i > 0; --i) {
-    for (unsigned j = 0; j < i; ++j) {
-      const auto b = blocks[j];
-      const auto l = b * blockSize;
-      const auto r = l + blockSize;  // Overflow will never happen here
-      assert(l < chromosomeSize);
-      populationWrapper[j] =
-          Chromosome<float>(chromosomes.data(), chromosomeSize, /* base: */ id,
-                            /* guide: */ (id ^ 1), l, r);
+    if (decodeType.onCpu()) {
+      buildBlocks(i, populationWrapper, chromosomes.data(), blocks.data(),
+                  blockSize, chromosomeSize, id);
+      decoder->decode(i, populationWrapper, fitness.data());
+    } else {
+      cuda::copy2d(streams[0], dChromosomes, chromosomes.data(),
+                   chromosomes.size());
+      cuda::copy2d(streams[0], dBlocks, blocks.data(), i);
+      buildBlocksKernel<<<1, i, 0, streams[0]>>>(populationWrapper,
+                                                 dChromosomes, dBlocks,
+                                                 blockSize, chromosomeSize, id);
+      decoder->decode(streams[0], i, populationWrapper, dFitness);
+      cuda::copy2h(streams[0], fitness.data(), dFitness, i);
+      cuda::sync(streams[0]);
     }
-
-    decoder->decode(i, populationWrapper, fitness.data());
 
     unsigned bestIdx = 0;
     for (unsigned j = 1; j < i; ++j) {
@@ -119,7 +183,8 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
 
   box::logger::debug("Path Relink finished with:", bestFitness);
 
-  cuda::free(nullptr, dChromosome);
+  cuda::free(nullptr, dChromosomes);
+  cuda::free(nullptr, dBlocks);
   return bestGenes;
 }
 
@@ -132,8 +197,7 @@ void box::Brkga::runPathRelink(unsigned blockSize,
 
   box::logger::debug("Run Path Relink between", pairList.size(), "pairs");
 
-  // FIXME add support to gpu/permutation
-  assert(decodeType.onCpu());
+  // FIXME add support to permutation
   assert(decodeType.chromosome());
 
   if (blockSize < 1)
@@ -156,7 +220,7 @@ void box::Brkga::runPathRelink(unsigned blockSize,
   }
 
   std::vector<unsigned> insertedCount(numberOfPopulations, 0);
-  auto dChromosome = cuda::alloc<float>(nullptr, chromosomeSize);
+  auto dChromosomes = cuda::alloc<float>(nullptr, chromosomeSize);
 
   for (const auto& pair : pairList) {
     const auto base =
@@ -176,15 +240,15 @@ void box::Brkga::runPathRelink(unsigned blockSize,
         populationSize - insertedCount[pair.basePopulationId];
 
     box::logger::debug("Copying the chromosome found back to the device");
-    cuda::copy2d(nullptr, dChromosome, bestGenes.data(), chromosomeSize);
+    cuda::copy2d(nullptr, dChromosomes, bestGenes.data(), chromosomeSize);
     copyToDevice<<<cuda::blocks(chromosomeSize, threadsPerBlock),
                    threadsPerBlock>>>(
         dPopulation.row(pair.basePopulationId), replacedChromosomeIndex,
-        dChromosome, chromosomeSize, dFitnessIdx.row(pair.basePopulationId));
+        dChromosomes, chromosomeSize, dFitnessIdx.row(pair.basePopulationId));
     CUDA_CHECK_LAST();
   }
 
-  cuda::free(nullptr, dChromosome);
+  cuda::free(nullptr, dChromosomes);
 
   // FIXME should decode only the new chromosomes, not the population
   updateFitness();
