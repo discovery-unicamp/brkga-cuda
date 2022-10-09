@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(brkga_cuda LANGUAGES CUDA CXX)
 
-set(BB_SEGSORT_ROOT "${CMAKE_CURRENT_LIST_DIR}/bb_segsort")
+set(BB_SEGSORT_ROOT "${CMAKE_CURRENT_LIST_DIR}/gpu-sort")
 include("${BB_SEGSORT_ROOT}/CMakeLists.txt")
 
 find_package(OpenMP)
