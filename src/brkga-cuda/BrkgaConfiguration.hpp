@@ -15,9 +15,6 @@ public:
     Builder& decoder(Decoder* d);
     Builder& threadsPerBlock(unsigned k);
     Builder& ompThreads(unsigned k);
-    Builder& generations(unsigned n);
-    Builder& exchangeBestInterval(unsigned k);
-    Builder& exchangeBestCount(unsigned n);
     Builder& numberOfPopulations(unsigned n);
     Builder& populationSize(unsigned n);
     Builder& chromosomeLength(unsigned n);
@@ -33,11 +30,8 @@ public:
 
   private:
     Decoder* _decoder = nullptr;
-    unsigned _generations = 0;
     unsigned _threadsPerBlock = 0;
-    unsigned _ompThreads = 0;  // TODO default to the number of threads of the CPU
-    unsigned _exchangeBestInterval = 0;
-    unsigned _exchangeBestCount = 0;
+    unsigned _ompThreads = 1;
     unsigned _numberOfPopulations = 0;
     unsigned _populationSize = 0;
     unsigned _chromosomeLength = 0;
@@ -70,12 +64,6 @@ public:
   unsigned mutantsCount;  ///< proportion of mutant population
   float rhoe;  ///< probability that child gets an allele from elite parent
   unsigned seed;  ///< the seed to use in the algorithm
-
-  // these members are just for convenience as they aren't used by the main
-  // algorithm
-  unsigned generations;  ///< the number of generations of the population
-  unsigned exchangeBestInterval;  ///< steps to exchange best individuals
-  unsigned exchangeBestCount;  ///< number of individuals to exchange
 
 private:
   friend Builder;

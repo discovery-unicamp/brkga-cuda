@@ -1,148 +1,118 @@
 #include "BrkgaConfiguration.hpp"
 
 #include "Logger.hpp"
+#include "except/InvalidArgument.hpp"
 
-#include <cmath>
-#include <stdexcept>
-
-box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::decoder(
-    Decoder* d) {
-  if (d == nullptr) throw std::invalid_argument("Decoder can't be null");
+namespace box {
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::decoder(Decoder* d) {
+  InvalidArgument::null("Decoder", d, __FUNCTION__);
   _decoder = d;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::threadsPerBlock(unsigned k) {
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::threadsPerBlock(
+    unsigned k) {
   _threadsPerBlock = k;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::ompThreads(
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::ompThreads(
     unsigned k) {
   _ompThreads = k;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::generations(
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfPopulations(
     unsigned n) {
-  _generations = n;
-  return *this;
-}
-
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::exchangeBestInterval(unsigned k) {
-  _exchangeBestInterval = k;
-  return *this;
-}
-
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::exchangeBestCount(unsigned n) {
-  _exchangeBestCount = n;
-  return *this;
-}
-
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::numberOfPopulations(unsigned n) {
-  if (n < 1)
-    throw std::invalid_argument("Number of populations must be at least 1");
+  InvalidArgument::min("Number of populations", n, 1u, __FUNCTION__);
   _numberOfPopulations = n;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::populationSize(unsigned n) {
-  if (n < 3) throw std::invalid_argument("Population size must be at least 3");
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::populationSize(
+    unsigned n) {
+  InvalidArgument::min("Population size", n, 3u, __FUNCTION__);
   _populationSize = n;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::chromosomeLength(unsigned n) {
-  if (n < 1)
-    throw std::invalid_argument("Chromosome length must be at least 1");
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::chromosomeLength(
+    unsigned n) {
+  InvalidArgument::min("Chromosome length", n, 2u, __FUNCTION__);
   _chromosomeLength = n;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::eliteCount(
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::eliteCount(
     unsigned n) {
-  if (n == 0 || n >= _populationSize)
-    throw std::invalid_argument(
-        "Elite count should be in range [1, population size)");
-  if (n + _mutantsCount >= _populationSize)
-    throw std::invalid_argument("Elite + mutants should be < population size");
+  InvalidArgument::range("Number of elites", n, 1u,
+                         _populationSize - _mutantsCount, 2 /* start closed */,
+                         __FUNCTION__);
   _eliteCount = n;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::eliteFactor(float p) {
-  if (p <= 0 || p >= 1)
-    throw std::invalid_argument("Elite proportion should be in range (0, 1)");
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::eliteFactor(float p) {
+  InvalidArgument::range("Elite proportion", p, 0.0f, 1.0f, 0 /* open range */,
+                         __FUNCTION__);
   return eliteCount((unsigned)(p * (float)_populationSize));
 }
 
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::mutantsCount(unsigned n) {
-  if (n == 0 || n >= _populationSize)
-    throw std::invalid_argument(
-        "Mutants count should be in range [1, population size)");
-  if (n + _eliteCount >= _populationSize)
-    throw std::invalid_argument("Elite + mutants should be < population size");
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::mutantsCount(
+    unsigned n) {
+  InvalidArgument::range("Number of mutants", n, 1u,
+                         _populationSize - _eliteCount, 2 /* start closed */,
+                         __FUNCTION__);
   _mutantsCount = n;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder&
-box::BrkgaConfiguration::Builder::mutantsFactor(float p) {
-  if (p <= 0 || p >= 1)
-    throw std::invalid_argument("Mutant proportion should be in range (0, 1)");
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::mutantsFactor(
+    float p) {
+  InvalidArgument::range("Mutant proportion", p, 0.0f, 1.0f, 0 /* open range */,
+                         __FUNCTION__);
   return mutantsCount((unsigned)(p * (float)_populationSize));
 }
 
-box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::rhoe(
-    float r) {
-  if (r <= .5f || r > 1.0)
-    throw std::invalid_argument("Rhoe should be in range (0.5, 1]");
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::rhoe(float r) {
+  InvalidArgument::range("Rhoe", r, 0.5f, 1.0f, 0 /* open range */,
+                         __FUNCTION__);
   _rhoe = r;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::seed(
-    unsigned s) {
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::seed(unsigned s) {
   _seed = s;
   return *this;
 }
 
-box::BrkgaConfiguration::Builder& box::BrkgaConfiguration::Builder::decodeType(
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::decodeType(
     DecodeType dt) {
   _decodeType = dt;
   return *this;
 }
 
-box::BrkgaConfiguration box::BrkgaConfiguration::Builder::build() const {
-  if (_decoder == nullptr) throw std::invalid_argument("Decoder wasn't set");
+BrkgaConfiguration BrkgaConfiguration::Builder::build() const {
+  if (_decoder == nullptr)
+    throw InvalidArgument("Decoder wasn't set", __FUNCTION__);
   if (_threadsPerBlock == 0)
-    throw std::invalid_argument("Threads per block wasn't set");
+    throw InvalidArgument("Threads per block wasn't set", __FUNCTION__);
   if (_numberOfPopulations == 0)
-    throw std::invalid_argument("Number of populations wasn't set");
+    throw InvalidArgument("Number of populations wasn't set", __FUNCTION__);
   if (_populationSize == 0)
-    throw std::invalid_argument("Population size wasn't set");
+    throw InvalidArgument("Population size wasn't set", __FUNCTION__);
   if (_chromosomeLength == 0)
-    throw std::invalid_argument("Chromosome length wasn't set");
-  if (_eliteCount == 0) throw std::invalid_argument("Elite count wasn't set");
+    throw InvalidArgument("Chromosome length wasn't set", __FUNCTION__);
+  if (_eliteCount == 0)
+    throw InvalidArgument("Elite count wasn't set", __FUNCTION__);
   if (_mutantsCount == 0)
-    throw std::invalid_argument("Mutants count wasn't set");
-  if (std::abs(_rhoe) < 1e-6f) throw std::invalid_argument("Rhoe wasn't set");
-
-  if (_generations == 0) box::logger::warning("Number of generations is zero");
+    throw InvalidArgument("Mutants count wasn't set", __FUNCTION__);
+  if (_rhoe < 1e-7f) throw InvalidArgument("Rhoe wasn't set", __FUNCTION__);
 
   BrkgaConfiguration config;
   config.decoder = _decoder;
   config.threadsPerBlock = _threadsPerBlock;
   config.ompThreads = _ompThreads;
-  config.generations = _generations;
   config.numberOfPopulations = _numberOfPopulations;
   config.populationSize = _populationSize;
   config.chromosomeLength = _chromosomeLength;
@@ -152,15 +122,6 @@ box::BrkgaConfiguration box::BrkgaConfiguration::Builder::build() const {
   config.seed = _seed;
   config.decodeType = _decodeType;
 
-  if ((_exchangeBestInterval > 0) != (_exchangeBestCount > 0)) {
-    box::logger::warning(
-        "Exchange interval/count is conflicting and will be disabled.");
-    config.exchangeBestInterval = 0;
-    config.exchangeBestCount = 0;
-  } else {
-    config.exchangeBestInterval = _exchangeBestInterval;
-    config.exchangeBestCount = _exchangeBestCount;
-  }
-
   return config;
 }
+}  // namespace box
