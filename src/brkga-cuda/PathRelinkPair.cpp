@@ -1,5 +1,6 @@
-#include "Logger.hpp"
 #include "PathRelinkPair.hpp"
+
+#include "Logger.hpp"
 
 #include <random>
 
@@ -11,7 +12,7 @@ std::vector<PathRelinkPair> PathRelinkPair::bestElites(
     unsigned numberOfPopulations,
     unsigned numberOfElites,
     unsigned k) {
-  if (k < 1) throw std::invalid_argument("k should be at least 2");
+  if (k < 1) throw std::invalid_argument("k should be at least 1");
   if (k > numberOfElites)
     throw std::invalid_argument("k should not exceed the number of elites");
 
