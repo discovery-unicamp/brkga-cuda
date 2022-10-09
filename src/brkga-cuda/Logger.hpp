@@ -5,6 +5,8 @@
 #define LOG_LEVEL box::logger::_LogType::WARNING
 #endif  // LOG_LEVEL
 
+#include "utils/StringUtils.hpp"
+
 #include <iostream>
 #include <string>
 
@@ -21,22 +23,12 @@ static const char* CYAN = "\033[0;36m";
 static const char* RED = "\033[0;31m";
 static const char* YELLOW = "\033[0;33m";
 
-inline void _log_impl(std::ostream&) {}
-
-template <class T, class... U>
-inline void _log_impl(std::ostream& out, const T& x, const U&... y) {
-  out << ' ' << x;
-  _log_impl(out, y...);
-}
-
 template <class... T>
 inline void _log(std::ostream& out,
                  const char* config,
                  const char* type,
                  const T&... x) {
-  out << config << type;
-  _log_impl(out, x...);
-  out << RESET << '\n' << std::flush;  // flush to avoid missing any log
+  out << config << formats(" ", type, x...) << RESET << std::endl;
 }
 
 template <class... T>
