@@ -1,6 +1,8 @@
 #include "PathRelinkPair.hpp"
 
 #include "Logger.hpp"
+#include "except/InvalidArgument.hpp"
+#include "except/NotImplemented.hpp"
 
 #include <random>
 
@@ -12,9 +14,8 @@ std::vector<PathRelinkPair> PathRelinkPair::bestElites(
     unsigned numberOfPopulations,
     unsigned numberOfElites,
     unsigned k) {
-  if (k < 1) throw std::invalid_argument("k should be at least 1");
-  if (k > numberOfElites)
-    throw std::invalid_argument("k should not exceed the number of elites");
+  InvalidArgument::range("Best elites", k, 1u, numberOfElites,
+                         2 /* closed start */, __FUNCTION__);
 
   logger::debug("Build Path Relink pairs with the best", k, "elites");
 
@@ -47,7 +48,6 @@ std::vector<PathRelinkPair> PathRelinkPair::randomElites(unsigned,
                                                          unsigned,
                                                          unsigned) {
   // FIXME
-  logger::error(__PRETTY_FUNCTION__, "wasn't implemented");
-  abort();
+  throw NotImplemented(__PRETTY_FUNCTION__);
 }
 }  // namespace box

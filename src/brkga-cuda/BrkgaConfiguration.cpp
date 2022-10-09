@@ -12,12 +12,20 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::decoder(Decoder* d) {
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::threadsPerBlock(
     unsigned k) {
+  InvalidArgument::range("Threads per block", k, 1u, 1024u,
+                         3 /* closed range */, __FUNCTION__);
   _threadsPerBlock = k;
   return *this;
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::ompThreads(
     unsigned k) {
+#ifndef _OPENMP
+  if (k > 1)
+    throw std::logic_error(format(
+        "OpenMP wasn't enabled; cannot set the number of threads to ", k));
+#endif  //_OPENMP
+  InvalidArgument::min("OpenMP threads", k, 1u, __FUNCTION__);
   _ompThreads = k;
   return *this;
 }

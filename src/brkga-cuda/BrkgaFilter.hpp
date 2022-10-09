@@ -2,6 +2,7 @@
 #define BOX_BRKGA_FILTER_HPP
 
 #include "Chromosome.hpp"
+#include "except/InvalidArgument.hpp"
 
 #include <cuda_runtime.h>
 
@@ -10,6 +11,7 @@
 #include <stdexcept>
 
 namespace box {
+// FIXME Handle these filter inside the device
 /**
  * Filter to determine if two chromosomes are very similar.
  *
@@ -27,24 +29,20 @@ public:
       : chromosomeLength(_chromosomeLength),
         minDiffGenes(
             (unsigned)((float)chromosomeLength * (1.0 - _similarityLimit))) {
-    if (_similarityLimit <= 0) {
-      throw std::domain_error(
-          "Similarity is too small: it should be > 0, "
-          "otherwise all chromosomes are considered equal");
-    }
-    if (_similarityLimit > 1) {
-      throw std::domain_error("Similarity should be at most 1");
-    }
+    InvalidArgument::range("Similarity", _similarityLimit, 0.0f, 1.0f,
+                           1 /* end closed */, __FUNCTION__);
+
+    // The condition above isn't enough?
+    assert(minDiffGenes > 0);
     assert(minDiffGenes < chromosomeLength);
   }
 
   /// Determines if two chromosomes are equal.
-  virtual __host__ __device__ bool operator()(
-      const Chromosome<float>& lhs,
-      const Chromosome<float>& rhs) const;
+  virtual bool operator()(const Chromosome<float>& lhs,
+                          const Chromosome<float>& rhs) const;
 
   /// Determines if two genes are equal.
-  virtual __host__ __device__ bool isEqual(float lhs, float rhs) const = 0;
+  virtual bool isEqual(float lhs, float rhs) const = 0;
 
 protected:
   unsigned chromosomeLength;
@@ -55,9 +53,9 @@ protected:
  * Determine if two chromosomes are very similar comparing each gene.
  *
  * The filter assumes that two genes are equal if their absolute difference
- * doesn't exceed the threshold, i.e.:
+ * doesn't exceed the epsilon, i.e.:
  * \code{.cpp}
- * isEqual[i] = abs(lhs[i] - rhs[i]) < threshold
+ * isEqual[i] = abs(lhs[i] - rhs[i]) < eps
  * \endcode
  */
 class EpsilonFilter : public FilterBase {
@@ -66,20 +64,22 @@ public:
    * Initializes the data used by the filter.
    * \param _chromosomeLength The number of genes in the chromosome.
    * \param _similarityLimit % of equal genes to consider the chromosomes equal.
-   * \param _threshold The range to consider two genes equal. Defaults to 1e-7f.
+   * \param _eps The range to consider two genes equal. Defaults to 1e-7f.
    */
   inline EpsilonFilter(unsigned _chromosomeLength,
-                          float _similarityLimit,
-                          float _threshold = 1e-7f)
-      : FilterBase(_chromosomeLength, _similarityLimit),
-        threshold(_threshold) {}
+                       float _similarityLimit,
+                       float _eps = 1e-7f)
+      : FilterBase(_chromosomeLength, _similarityLimit), eps(_eps) {
+    InvalidArgument::range("Epsilon", eps, 0.0f, 1.0f, 0 /* open range */,
+                           __FUNCTION__);
+  }
 
-  inline __host__ __device__ bool isEqual(float lhs, float rhs) const {
-    return std::abs(lhs - rhs) < this->threshold;
+  inline bool isEqual(float lhs, float rhs) const {
+    return std::abs(lhs - rhs) < this->eps;
   }
 
 private:
-  float threshold;
+  float eps;
 };
 
 /**
@@ -102,10 +102,12 @@ public:
   inline ThresholdFilter(unsigned _chromosomeLength,
                          float _similarityLimit,
                          float _threshold)
-      : FilterBase(_chromosomeLength, _similarityLimit),
-        threshold(_threshold) {}
+      : FilterBase(_chromosomeLength, _similarityLimit), threshold(_threshold) {
+    InvalidArgument::range("Threshold", threshold, 0.0f, 1.0f,
+                           0 /* open range */, __FUNCTION__);
+  }
 
-  inline __host__ __device__ bool isEqual(float lhs, float rhs) const {
+  inline bool isEqual(float lhs, float rhs) const {
     return (lhs < this->threshold) == (rhs < this->threshold);
   }
 

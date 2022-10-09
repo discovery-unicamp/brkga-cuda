@@ -5,6 +5,7 @@
 #include "DecodeType.hpp"
 #include "Decoder.hpp"
 #include "Logger.hpp"
+#include "except/InvalidArgument.hpp"
 
 #include <curand.h>
 
@@ -37,8 +38,9 @@ box::Brkga::Brkga(
   logger::debug("Selected decoder:", config.decodeType.str());
 
   if (initialPopulation.size() > config.numberOfPopulations) {
-    throw std::invalid_argument(
-        "Initial population cannot have more chromosomes than population size");
+    throw InvalidArgument(
+        "Initial population cannot have more chromosomes than population size",
+        __FUNCTION__);
   }
 
   // TODO save only the configuration class
@@ -400,14 +402,9 @@ void box::Brkga::exchangeElite(unsigned count) {
   logger::debug("Sharing the", count, "best chromosomes of each one of the",
                 numberOfPopulations, "populations");
 
-  if (count > eliteSize)
-    throw std::range_error("Exchange count is greater than elite size.");
-  if (count * numberOfPopulations > populationSize) {
-    throw std::range_error(
-        "Exchange count will replace the entire population: it should be at "
-        "most [population size] / [number of populations] ("
-        + std::to_string(populationSize / numberOfPopulations) + ").");
-  }
+  InvalidArgument::range("Exchange count", count, 1u,
+                         populationSize / numberOfPopulations, 3 /* closed */,
+                         __FUNCTION__);
 
   syncStreams();
 
@@ -437,7 +434,8 @@ std::vector<float> box::Brkga::getBestChromosome() {
 
 std::vector<unsigned> box::Brkga::getBestPermutation() {
   if (decodeType.chromosome())
-    throw std::runtime_error("The chromosome decoder has no permutation");
+    throw InvalidArgument("The chromosome decoder has no permutation",
+                          __FUNCTION__);
 
   auto bestIdx = getBest();
   auto bestPopulation = bestIdx.first;

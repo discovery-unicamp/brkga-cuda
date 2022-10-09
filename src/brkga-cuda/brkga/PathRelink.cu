@@ -132,10 +132,10 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   fitness.resize(numberOfSegments);
 
   unsigned* dBlocks = nullptr;
-  float* dFitness = nullptr;
+  float* dFitnessPtr = nullptr;
   if (!decodeType.onCpu()) {
     dBlocks = cuda::alloc<unsigned>(nullptr, numberOfSegments);
-    dFitness = cuda::alloc<float>(nullptr, numberOfSegments);
+    dFitnessPtr = cuda::alloc<float>(nullptr, numberOfSegments);
   }
 
   unsigned id = 0;
@@ -151,8 +151,8 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
       buildBlocksKernel<<<1, i, 0, streams[0]>>>(populationWrapper,
                                                  dChromosomes, dBlocks,
                                                  blockSize, chromosomeSize, id);
-      decoder->decode(streams[0], i, populationWrapper, dFitness);
-      cuda::copy2h(streams[0], fitness.data(), dFitness, i);
+      decoder->decode(streams[0], i, populationWrapper, dFitnessPtr);
+      cuda::copy2h(streams[0], fitness.data(), dFitnessPtr, i);
       cuda::sync(streams[0]);
     }
 
