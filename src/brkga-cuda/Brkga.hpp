@@ -64,6 +64,9 @@ public:
   // FIXME this is temporary
   // @{
   /// Run the Path Relink algorithm between pairs of chromosomes.
+  std::vector<bool> compareChromosomes(const std::vector<PathRelinkPair>& ids,
+                                       const FilterBase& cmp);
+
   template <typename F, typename... Args>
   inline void runPathRelink(unsigned blockSize,
                             const F& selectMethod,

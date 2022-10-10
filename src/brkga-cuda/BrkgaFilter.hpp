@@ -18,6 +18,7 @@ namespace box {
  * With this class we aim to be flexible while removing duplicated chromosomes
  * in the population.
  */
+// TODO rename to compare (or something like that)
 class FilterBase {
 public:
   /**

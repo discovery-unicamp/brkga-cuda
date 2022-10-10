@@ -1,5 +1,6 @@
 #include "Brkga.hpp"
 #include "BrkgaConfiguration.hpp"
+#include "BrkgaFilter.hpp"
 #include "CudaError.cuh"
 #include "CudaUtils.hpp"
 #include "DecodeType.hpp"
@@ -418,6 +419,31 @@ void box::Brkga::exchangeElite(unsigned count) {
   cuda::sync();
 
   updateFitness();
+}
+
+std::vector<bool> box::Brkga::compareChromosomes(
+    const std::vector<PathRelinkPair>& ids,
+    const FilterBase& cmp) {
+  std::vector<bool> equal;
+  equal.reserve(ids.size());
+
+  std::vector<float> ch1(chromosomeSize);
+  std::vector<float> ch2(chromosomeSize);
+  for (const auto& id : ids) {
+    cuda::copy2h(nullptr, ch1.data(),
+                 dPopulation.row(id.basePopulationId)
+                     + id.baseChromosomeId * chromosomeSize,
+                 chromosomeSize);
+    cuda::copy2h(nullptr, ch2.data(),
+                 dPopulation.row(id.guidePopulationId)
+                     + id.guideChromosomeId * chromosomeSize,
+                 chromosomeSize);
+
+    equal.push_back(cmp(Chromosome<float>(ch1.data(), chromosomeSize, 0),
+                        Chromosome<float>(ch2.data(), chromosomeSize, 0)));
+  }
+
+  return equal;
 }
 
 std::vector<float> box::Brkga::getBestChromosome() {
