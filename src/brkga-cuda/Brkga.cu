@@ -402,9 +402,11 @@ void box::Brkga::exchangeElite(unsigned count) {
   logger::debug("Sharing the", count, "best chromosomes of each one of the",
                 numberOfPopulations, "populations");
 
-  InvalidArgument::range("Exchange count", count, 1u,
-                         populationSize / numberOfPopulations, 3 /* closed */,
-                         __FUNCTION__);
+  InvalidArgument::range(Arg<unsigned>(count, "exchange count"),
+                         Arg<unsigned>(1),
+                         Arg<unsigned>(populationSize / numberOfPopulations,
+                                       "population / #populations"),
+                         3 /* closed */, __FUNCTION__);
 
   syncStreams();
 

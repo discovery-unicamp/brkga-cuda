@@ -28,7 +28,7 @@ inline void _log(std::ostream& out,
                  const char* config,
                  const char* type,
                  const T&... x) {
-  out << config << formats(" ", type, x...) << RESET << std::endl;
+  out << config << format(type, x...) << RESET << std::endl;
 }
 
 template <class... T>

@@ -12,6 +12,9 @@ include_directories(SYSTEM "${CUDA_INCLUDE_DIRS}")
 add_library(brkga-cuda
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/PathRelink.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/Filter.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/except/InvalidArgument.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/except/NotImplemented.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/utils/StringUtils.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaConfiguration.cpp

@@ -14,7 +14,8 @@ std::vector<PathRelinkPair> PathRelinkPair::bestElites(
     unsigned numberOfPopulations,
     unsigned numberOfElites,
     unsigned k) {
-  InvalidArgument::range("Best elites", k, 1u, numberOfElites,
+  InvalidArgument::range(Arg<unsigned>(k, "k"), Arg<unsigned>(1),
+                         Arg<unsigned>(numberOfElites, "#elites"),
                          2 /* closed start */, __FUNCTION__);
 
   logger::debug("Build Path Relink pairs with the best", k, "elites");

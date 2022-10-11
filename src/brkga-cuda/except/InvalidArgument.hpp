@@ -5,49 +5,61 @@
 
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace box {
+template <class T>
+struct Arg {
+  inline Arg(const T& _value, const std::string& _name = "")
+      : value(_value), name(_name) {}
+
+  inline std::string str() const {
+    if (name.empty()) return format(value);
+    return format(Separator(""), name, " (", value, ")");
+  }
+
+  const T& value;
+  const std::string& name;
+};
+
 class InvalidArgument : public std::runtime_error {
 public:
   typedef std::runtime_error Super;
 
   template <class T>
-  static void null(const std::string& name,
-                   const T* arg,
-                   const std::string& func) {
-    if (arg == nullptr) throw InvalidArgument(format(name, " is null"), func);
+  static inline void null(const Arg<T*>& arg, const std::string& func) {
+    if (arg.value == nullptr)
+      throw InvalidArgument(format(arg.name, "is null"), func);
   }
 
   template <class T>
-  static void min(const std::string& name,
-                  const T& arg,
-                  const T& minValue,
-                  const std::string& func) {
-    if (arg < minValue)
-      throw InvalidArgument(format(name, " is less than ", minValue, ": ", arg),
-                            func);
+  static inline void min(const Arg<T>& arg,
+                         const Arg<T>& min,
+                         const std::string& func) {
+    if (arg.value < min.value)
+      throw InvalidArgument(format(arg.str(), "is less than", min.str()), func);
   }
 
   template <class T>
-  static void range(const std::string& name,
-                    const T& arg,
-                    const T& begin,
-                    const T& end,
-                    unsigned type,
-                    const std::string& func) {
+  static inline void range(const Arg<T>& arg,
+                           const Arg<T>& min,
+                           const Arg<T>& max,
+                           unsigned type,
+                           const std::string& func) {
     const bool startClosed = type & 2;
     const bool endClosed = type & 1;
-    if ((startClosed ? arg < begin : arg <= begin)
-        || (endClosed ? arg > end : arg >= end)) {
+    if ((startClosed ? arg.value < min.value : arg.value <= min.value)
+        || (endClosed ? arg.value > max.value : arg.value >= max.value)) {
       throw InvalidArgument(
-          format(name, " is out of range ", (startClosed ? "[" : "("), begin,
-                 " ", end, (endClosed ? "]" : ")"), ": ", arg),
+          format(arg.str(), "is out of range",
+                 format(Separator(""), (startClosed ? '[' : '('), min.str(),
+                        ", ", max.str(), (endClosed ? ']' : ')'))),
           func);
     }
   }
 
-  InvalidArgument(const std::string& msg, const std::string& func)
-      : Super(format(msg, " (on ", func, ")")) {}
+  inline InvalidArgument(const std::string& msg, const std::string& func)
+      : Super(format(Separator(""), msg, " [function ", func, "]")) {}
 };
 }  // namespace box
 

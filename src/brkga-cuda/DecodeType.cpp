@@ -2,6 +2,7 @@
 
 #include "Logger.hpp"
 #include "except/InvalidArgument.hpp"
+#include "utils/StringUtils.hpp"
 
 #include <cctype>
 #include <string>
@@ -19,9 +20,9 @@ DecodeType DecodeType::fromString(const std::string& str) {
   bool allAtOnce = contains(str, "all");
   auto dt = DecodeType(cpu, chromosome, allAtOnce);
   if (dt.str() != str)
-    throw InvalidArgument(
-        format("Invalid decoder: ", str, "; did you mean ", dt.str(), "?"),
-        __FUNCTION__);
+    throw InvalidArgument(format(Separator(""), "Invalid decoder: ", str,
+                                 "; did you mean ", dt.str(), "?"),
+                          __FUNCTION__);
 
   return dt;
 }

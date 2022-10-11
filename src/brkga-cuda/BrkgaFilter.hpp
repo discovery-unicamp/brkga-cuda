@@ -29,8 +29,9 @@ public:
       : chromosomeLength(_chromosomeLength),
         minDiffGenes(
             (unsigned)((float)chromosomeLength * (1.0 - _similarityLimit))) {
-    InvalidArgument::range("Similarity", _similarityLimit, 0.0f, 1.0f,
-                           1 /* end closed */, __FUNCTION__);
+    InvalidArgument::range(Arg<float>(_similarityLimit, "Similarity"),
+                           Arg<float>(0), Arg<float>(1), 1 /* end closed */,
+                           __FUNCTION__);
 
     // The condition above isn't enough?
     assert(minDiffGenes > 0);
@@ -70,8 +71,8 @@ public:
                        float _similarityLimit,
                        float _eps = 1e-7f)
       : FilterBase(_chromosomeLength, _similarityLimit), eps(_eps) {
-    InvalidArgument::range("Epsilon", eps, 0.0f, 1.0f, 0 /* open range */,
-                           __FUNCTION__);
+    InvalidArgument::range(Arg<float>(eps, "epsilon"), Arg<float>(0),
+                           Arg<float>(1), 0 /* open range */, __FUNCTION__);
   }
 
   inline bool isEqual(float lhs, float rhs) const {
@@ -103,8 +104,8 @@ public:
                          float _similarityLimit,
                          float _threshold)
       : FilterBase(_chromosomeLength, _similarityLimit), threshold(_threshold) {
-    InvalidArgument::range("Threshold", threshold, 0.0f, 1.0f,
-                           0 /* open range */, __FUNCTION__);
+    InvalidArgument::range(Arg<float>(threshold, "threshold"), Arg<float>(0),
+                           Arg<float>(1), 0 /* open range */, __FUNCTION__);
   }
 
   inline bool isEqual(float lhs, float rhs) const {
