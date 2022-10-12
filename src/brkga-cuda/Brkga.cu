@@ -430,14 +430,14 @@ std::vector<bool> box::Brkga::compareChromosomes(
   std::vector<float> ch1(chromosomeSize);
   std::vector<float> ch2(chromosomeSize);
   for (const auto& id : ids) {
-    cuda::copy2h(nullptr, ch1.data(),
-                 dPopulation.row(id.basePopulationId)
-                     + id.baseChromosomeId * chromosomeSize,
-                 chromosomeSize);
-    cuda::copy2h(nullptr, ch2.data(),
-                 dPopulation.row(id.guidePopulationId)
-                     + id.guideChromosomeId * chromosomeSize,
-                 chromosomeSize);
+    gpu::copy2h(nullptr, ch1.data(),
+                dPopulation.row(id.basePopulationId)
+                    + id.baseChromosomeId * chromosomeSize,
+                chromosomeSize);
+    gpu::copy2h(nullptr, ch2.data(),
+                dPopulation.row(id.guidePopulationId)
+                    + id.guideChromosomeId * chromosomeSize,
+                chromosomeSize);
 
     equal.push_back(cmp(Chromosome<float>(ch1.data(), chromosomeSize, 0),
                         Chromosome<float>(ch2.data(), chromosomeSize, 0)));
