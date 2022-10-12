@@ -41,6 +41,15 @@ public:
   }
 
   template <class T>
+  static inline void max(const Arg<T>& arg,
+                         const Arg<T>& max,
+                         const std::string& func) {
+    if (arg.value > max.value)
+      throw InvalidArgument(format(arg.str(), "is greater than", max.str()),
+                            func);
+  }
+
+  template <class T>
   static inline void range(const Arg<T>& arg,
                            const Arg<T>& min,
                            const Arg<T>& max,

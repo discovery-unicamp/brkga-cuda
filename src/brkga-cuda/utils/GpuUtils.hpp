@@ -3,6 +3,7 @@
 
 #include "../CudaError.cuh"
 #include "../Logger.hpp"
+#include "../except/InvalidArgument.hpp"
 
 #include <cuda_runtime.h>
 #include <curand.h>
@@ -307,7 +308,8 @@ public:
   inline T* get() { return matrix; }
 
   inline T* row(std::size_t k) {
-    if (k >= nrows) throw std::out_of_range("Invalid matrix row");
+    InvalidArgument::max(Arg<std::size_t>(k, "row"),
+                         Arg<std::size_t>(nrows - 1, "last row"), __FUNCTION__);
     return matrix + k * ncols;
   }
 
