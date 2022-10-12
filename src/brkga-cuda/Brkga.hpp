@@ -46,22 +46,12 @@ public:
   void evolve();
 
   // TODO add support to device objects
-  /// For each pair of elites, remove the worse of them if \p filter is true.
+  /// For each pair of elites, remove the worse of them if @p filter is true.
   void removeSimilarElites(const FilterBase& filter);
 
   // TODO move count param to the config class
-  /**
-   * Copy the elites from/to all populations.
-   *
-   * This method will simply copy the \p count elites from one population to all
-   * the others. It will not copy to the same population, which avoids
-   * generating duplicated chromosomes.
-   *
-   * This operation blocks the CPU until it is finished.
-   *
-   * \param count The number of elites to copy from each population.
-   */
-  void exchangeElite(unsigned count);
+  /// Copy the elites from/to all populations, except from/to itself.
+  void exchangeElites();
 
   // FIXME this is temporary
   // @{
@@ -94,7 +84,7 @@ public:
   std::vector<float> getBestChromosome();
 
   /// Get the permutation of the best chromosome found so far.
-  /// \throw `std::runtime_error` If the decode type is a non-sorted one.
+  /// @throw `std::runtime_error` If the decode type is a non-sorted one.
   std::vector<unsigned> getBestPermutation();
 
   std::vector<DecodedChromosome> getPopulation(unsigned p);
@@ -110,7 +100,7 @@ private:
   /**
    * Call the decode method to the population `p`.
    *
-   * \param p The index of the population to decode.
+   * @param p The index of the population to decode.
    */
   void decodePopulation(unsigned p);
 

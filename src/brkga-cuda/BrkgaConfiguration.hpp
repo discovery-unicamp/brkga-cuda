@@ -6,6 +6,8 @@
 namespace box {
 class Decoder;
 
+// TODO add docstring to the methods
+
 /// Configuration of the BRKGA algorithm
 class BrkgaConfiguration {
 public:
@@ -26,6 +28,7 @@ public:
     Builder& numberOfMutants(unsigned n);
     Builder& mutantPercentage(float p);
     Builder& rhoe(float r);
+    Builder& numberOfElitesToExchange(unsigned k);
     Builder& seed(unsigned s);
 
     BrkgaConfiguration build();
@@ -45,6 +48,7 @@ public:
   inline unsigned numberOfElites() const { return _numberOfElites; }
   inline unsigned numberOfMutants() const { return _numberOfMutants; }
   inline float rhoe() const { return _rhoe; }
+  inline unsigned numberOfElitesToExchange() const { return _exchangeEliteCount; }
   inline unsigned seed() const { return _seed; }
   inline unsigned ompThreads() const { return _ompThreads; }
   inline unsigned gpuThreads() const { return _gpuThreads; }
@@ -62,6 +66,7 @@ public:
   void setNumberOfMutants(unsigned n);
   void setMutantPercentage(float p);
   void setRhoe(float r);
+  void setExchangeEliteCount(unsigned k);
   void setOmpThreads(unsigned k);
   void setGpuThreads(unsigned k);
 
@@ -77,6 +82,7 @@ private:
         _numberOfElites(0),
         _numberOfMutants(0),
         _rhoe(0),
+        _exchangeEliteCount(0),
         _seed(0),
         _ompThreads(1),
         _gpuThreads(0) {}
@@ -89,6 +95,7 @@ private:
   unsigned _numberOfElites;  /// Number of elites in the population
   unsigned _numberOfMutants;  /// Number of mutants in the population
   float _rhoe;  /// Probability that child gets an allele from the elite parent
+  unsigned _exchangeEliteCount;  /// Number of elites for @ref exchangeElites
   unsigned _seed;  /// The seed to use
   unsigned _ompThreads;  /// #threads to use on OpenMP
   unsigned _gpuThreads;  /// #threads per block for CUDA kernels

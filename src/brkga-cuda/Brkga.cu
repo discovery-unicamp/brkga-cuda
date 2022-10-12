@@ -140,7 +140,8 @@ __global__ void evolveMate(float* population,
                            const unsigned chromosomeLength,
                            const float rhoe) {
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (tid >= (populationSize - numberOfElites - numberOfMutants) * chromosomeLength)
+  if (tid
+      >= (populationSize - numberOfElites - numberOfMutants) * chromosomeLength)
     return;
 
   const auto permutations = numberOfElites + tid / chromosomeLength;
@@ -409,15 +410,10 @@ __global__ void deviceExchangeElite(float* population,
         }
 }
 
-void box::Brkga::exchangeElite(unsigned count) {
-  logger::debug("Sharing the", count, "best chromosomes of each one of the",
+void box::Brkga::exchangeElites() {
+  logger::debug("Sharing the", config.numberOfElitesToExchange(),
+                "best chromosomes of each one of the",
                 config.numberOfPopulations(), "populations");
-
-  InvalidArgument::range(
-      Arg<unsigned>(count, "exchange count"), Arg<unsigned>(1),
-      Arg<unsigned>(config.populationSize() / config.numberOfPopulations(),
-                    "population / #populations"),
-      3 /* closed */, __FUNCTION__);
 
   syncStreams();
 
@@ -425,7 +421,8 @@ void box::Brkga::exchangeElite(unsigned count) {
       gpu::blocks(config.chromosomeLength(), config.gpuThreads());
   deviceExchangeElite<<<blocks, config.gpuThreads()>>>(
       dPopulation.get(), config.chromosomeLength(), config.populationSize(),
-      config.numberOfPopulations(), dFitnessIdx.get(), count);
+      config.numberOfPopulations(), dFitnessIdx.get(),
+      config.numberOfElitesToExchange());
   CUDA_CHECK_LAST();
   gpu::sync();
 

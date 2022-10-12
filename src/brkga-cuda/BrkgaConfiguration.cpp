@@ -34,7 +34,7 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfPopulations(
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::populationSize(
     unsigned n) {
-  InvalidArgument::min(Arg<unsigned>(n, "population size"), Arg<unsigned>(3),
+  InvalidArgument::min(Arg<unsigned>(n, "|population|"), Arg<unsigned>(3),
                        __FUNCTION__);
   config->_populationSize = n;
   return *this;
@@ -88,6 +88,12 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::rhoe(float r) {
   return *this;
 }
 
+BrkgaConfiguration::Builder&
+BrkgaConfiguration::Builder::numberOfElitesToExchange(unsigned k) {
+  config->setExchangeEliteCount(k);
+  return *this;
+}
+
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::seed(unsigned s) {
   config->_seed = s;
   return *this;
@@ -128,35 +134,46 @@ BrkgaConfiguration BrkgaConfiguration::Builder::build() {
 void BrkgaConfiguration::setNumberOfElites(unsigned n) {
   InvalidArgument::range(Arg<unsigned>(n, "#elites"), Arg<unsigned>(1),
                          Arg<unsigned>(_populationSize - _numberOfMutants,
-                                       "population - #mutants"),
+                                       "|population| - #mutants"),
                          2 /* start closed */, __FUNCTION__);
   _numberOfElites = n;
 }
 
 void BrkgaConfiguration::setElitePercentage(float p) {
   InvalidArgument::range(Arg<float>(p, "elite%"), Arg<float>(0), Arg<float>(1),
-                         0 /* open range */, __FUNCTION__);
+                         0 /* open */, __FUNCTION__);
   setNumberOfElites((unsigned)(p * (float)_populationSize));
 }
 
 void BrkgaConfiguration::setNumberOfMutants(unsigned n) {
-  InvalidArgument::range(
-      Arg<unsigned>(n, "#mutants"), Arg<unsigned>(1),
-      Arg<unsigned>(_populationSize - _numberOfElites, "population - #elites"),
-      2 /* start closed */, __FUNCTION__);
+  InvalidArgument::range(Arg<unsigned>(n, "#mutants"), Arg<unsigned>(1),
+                         Arg<unsigned>(_populationSize - _numberOfElites,
+                                       "|population| - #elites"),
+                         2 /* start closed */, __FUNCTION__);
   _numberOfMutants = n;
 }
 
 void BrkgaConfiguration::setMutantPercentage(float p) {
   InvalidArgument::range(Arg<float>(p, "mutant%"), Arg<float>(0), Arg<float>(1),
-                         0 /* open range */, __FUNCTION__);
+                         0 /* open */, __FUNCTION__);
   setNumberOfMutants((unsigned)(p * (float)_populationSize));
 }
 
 void BrkgaConfiguration::setRhoe(float r) {
   InvalidArgument::range(Arg<float>(r, "rhoe"), Arg<float>(.5f), Arg<float>(1),
-                         0 /* open range */, __FUNCTION__);
+                         0 /* open */, __FUNCTION__);
   _rhoe = r;
+}
+
+void BrkgaConfiguration::setExchangeEliteCount(unsigned k) {
+  InvalidArgument::range(Arg<unsigned>(k, "exchange count"), Arg<unsigned>(0),
+                         Arg<unsigned>(_numberOfElites, "#elites"),
+                         3 /* closed */, __FUNCTION__);
+  InvalidArgument::range(Arg<unsigned>(k, "exchange count"), Arg<unsigned>(0),
+                         Arg<unsigned>(_populationSize / _numberOfPopulations,
+                                       "|population| / #populations"),
+                         3 /* closed */, __FUNCTION__);
+  _exchangeEliteCount = k;
 }
 
 void BrkgaConfiguration::setOmpThreads(unsigned k) {
@@ -173,7 +190,7 @@ void BrkgaConfiguration::setOmpThreads(unsigned k) {
 void BrkgaConfiguration::setGpuThreads(unsigned k) {
   InvalidArgument::range(Arg<unsigned>(k, "gpu threads"), Arg<unsigned>(1),
                          Arg<unsigned>(MAX_GPU_THREADS, "CUDA limit"),
-                         3 /* closed range */, __FUNCTION__);
+                         3 /* closed */, __FUNCTION__);
   _gpuThreads = k;
 }
 }  // namespace box
