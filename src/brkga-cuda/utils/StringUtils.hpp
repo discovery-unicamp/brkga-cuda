@@ -6,8 +6,8 @@
 
 namespace box {
 struct Separator {
-  inline Separator(const std::string& _separator) : separator(_separator) {}
-  std::string separator;
+  inline Separator(const char* _separator) : separator(_separator) {}
+  const char* separator;
 };
 
 template <typename... T>

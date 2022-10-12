@@ -14,8 +14,8 @@ struct Arg {
       : value(_value), name(_name) {}
 
   inline std::string str() const {
-    if (name.empty()) return format(value);
-    return format(Separator(""), name, " (", value, ")");
+    return name.empty() ? format(value)
+                        : format(Separator(""), name, " (", value, ")");
   }
 
   const T& value;
