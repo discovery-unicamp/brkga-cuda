@@ -45,28 +45,32 @@ public:
   inline unsigned numberOfPopulations() const { return _numberOfPopulations; }
   inline unsigned populationSize() const { return _populationSize; }
   inline unsigned chromosomeLength() const { return _chromosomeLength; }
-  inline unsigned numberOfElites() const { return _numberOfElites; }
-  inline unsigned numberOfMutants() const { return _numberOfMutants; }
   inline float rhoe() const { return _rhoe; }
-  inline unsigned numberOfElitesToExchange() const { return _exchangeEliteCount; }
+
+  inline unsigned numberOfElites() const { return _numberOfElites; }
+  inline float elitePercentage() const {
+    return (float)_numberOfElites / (float)_populationSize;
+  }
+
+  inline unsigned numberOfMutants() const { return _numberOfMutants; }
+  inline float mutantPercentage() const {
+    return (float)_numberOfMutants / (float)_populationSize;
+  }
+
+  inline unsigned numberOfElitesToExchange() const {
+    return _numberOfElitesToExchange;
+  }
+
   inline unsigned seed() const { return _seed; }
   inline unsigned ompThreads() const { return _ompThreads; }
   inline unsigned gpuThreads() const { return _gpuThreads; }
 
-  inline float mutantProbability() const {
-    return (float)_numberOfMutants / (float)_populationSize;
-  }
-
-  inline float eliteProbability() const {
-    return (float)_numberOfElites / (float)_populationSize;
-  }
-
+  void setRhoe(float r);
   void setNumberOfElites(unsigned n);
   void setElitePercentage(float p);
   void setNumberOfMutants(unsigned n);
   void setMutantPercentage(float p);
-  void setRhoe(float r);
-  void setExchangeEliteCount(unsigned k);
+  void setNumberOfElitesToExchange(unsigned k);
   void setOmpThreads(unsigned k);
   void setGpuThreads(unsigned k);
 
@@ -79,10 +83,10 @@ private:
         _numberOfPopulations(0),
         _populationSize(0),
         _chromosomeLength(0),
+        _rhoe(0),
         _numberOfElites(0),
         _numberOfMutants(0),
-        _rhoe(0),
-        _exchangeEliteCount(0),
+        _numberOfElitesToExchange(0),
         _seed(0),
         _ompThreads(1),
         _gpuThreads(0) {}
@@ -92,10 +96,10 @@ private:
   unsigned _numberOfPopulations;  /// Number of independent populations
   unsigned _populationSize;  /// Size/#chromosomes of each population
   unsigned _chromosomeLength;  /// The length of the chromosomes
-  unsigned _numberOfElites;  /// Number of elites in the population
-  unsigned _numberOfMutants;  /// Number of mutants in the population
   float _rhoe;  /// Probability that child gets an allele from the elite parent
-  unsigned _exchangeEliteCount;  /// Number of elites for @ref exchangeElites
+  unsigned _numberOfElites;  /// #elites in the population
+  unsigned _numberOfMutants;  /// #mutants in the population
+  unsigned _numberOfElitesToExchange;  /// #elites for @ref exchangeElites
   unsigned _seed;  /// The seed to use
   unsigned _ompThreads;  /// #threads to use on OpenMP
   unsigned _gpuThreads;  /// #threads per block for CUDA kernels

@@ -2,19 +2,27 @@
 
 #include "BrkgaConfiguration.hpp"
 #include "Chromosome.hpp"
+#include "except/InvalidArgument.hpp"
 #include "except/NotImplemented.hpp"
 
-float box::Decoder::decode(const Chromosome<float>&) const {
+namespace box {
+void Decoder::setConfiguration(const BrkgaConfiguration* newConfig) {
+  InvalidArgument::null(Arg<const BrkgaConfiguration*>(newConfig),
+                        __FUNCTION__);
+  config = newConfig;
+}
+
+float Decoder::decode(const Chromosome<float>&) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
-float box::Decoder::decode(const Chromosome<unsigned>&) const {
+float Decoder::decode(const Chromosome<unsigned>&) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
-void box::Decoder::decode(unsigned numberOfChromosomes,
-                          const Chromosome<float>* chromosomes,
-                          float* fitness) const {
+void Decoder::decode(unsigned numberOfChromosomes,
+                     const Chromosome<float>* chromosomes,
+                     float* fitness) const {
   try {
 #ifdef _OPENMP
 #pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
@@ -28,9 +36,9 @@ void box::Decoder::decode(unsigned numberOfChromosomes,
   }
 }
 
-void box::Decoder::decode(unsigned numberOfPermutations,
-                          const Chromosome<unsigned>* permutations,
-                          float* fitness) const {
+void Decoder::decode(unsigned numberOfPermutations,
+                     const Chromosome<unsigned>* permutations,
+                     float* fitness) const {
   try {
 #ifdef _OPENMP
 #pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
@@ -44,16 +52,17 @@ void box::Decoder::decode(unsigned numberOfPermutations,
   }
 }
 
-void box::Decoder::decode(cudaStream_t,
-                          unsigned,
-                          const Chromosome<float>*,
-                          float*) const {
+void Decoder::decode(cudaStream_t,
+                     unsigned,
+                     const Chromosome<float>*,
+                     float*) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
-void box::Decoder::decode(cudaStream_t,
-                          unsigned,
-                          const Chromosome<unsigned>*,
-                          float*) const {
+void Decoder::decode(cudaStream_t,
+                     unsigned,
+                     const Chromosome<unsigned>*,
+                     float*) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
+}  // namespace box

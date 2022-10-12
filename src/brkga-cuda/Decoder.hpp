@@ -17,9 +17,7 @@ public:
 
   virtual ~Decoder() = default;
 
-  inline void setConfiguration(const BrkgaConfiguration* newConfig) {
-    config = newConfig;
-  }
+  void setConfiguration(const BrkgaConfiguration* newConfig);
 
   virtual float decode(const Chromosome<float>& chromosome) const;
 

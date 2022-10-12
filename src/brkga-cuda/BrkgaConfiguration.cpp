@@ -48,6 +48,11 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::chromosomeLength(
   return *this;
 }
 
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::rhoe(float r) {
+  config->setRhoe(r);
+  return *this;
+}
+
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfElites(
     unsigned n) {
   if (config->_populationSize == 0)
@@ -83,14 +88,9 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::mutantPercentage(
   return numberOfMutants((unsigned)(p * (float)config->_populationSize));
 }
 
-BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::rhoe(float r) {
-  config->setRhoe(r);
-  return *this;
-}
-
 BrkgaConfiguration::Builder&
 BrkgaConfiguration::Builder::numberOfElitesToExchange(unsigned k) {
-  config->setExchangeEliteCount(k);
+  config->setNumberOfElitesToExchange(k);
   return *this;
 }
 
@@ -131,6 +131,12 @@ BrkgaConfiguration BrkgaConfiguration::Builder::build() {
   return *config;
 }
 
+void BrkgaConfiguration::setRhoe(float r) {
+  InvalidArgument::range(Arg<float>(r, "rhoe"), Arg<float>(.5f), Arg<float>(1),
+                         0 /* open */, __FUNCTION__);
+  _rhoe = r;
+}
+
 void BrkgaConfiguration::setNumberOfElites(unsigned n) {
   InvalidArgument::range(Arg<unsigned>(n, "#elites"), Arg<unsigned>(1),
                          Arg<unsigned>(_populationSize - _numberOfMutants,
@@ -159,13 +165,7 @@ void BrkgaConfiguration::setMutantPercentage(float p) {
   setNumberOfMutants((unsigned)(p * (float)_populationSize));
 }
 
-void BrkgaConfiguration::setRhoe(float r) {
-  InvalidArgument::range(Arg<float>(r, "rhoe"), Arg<float>(.5f), Arg<float>(1),
-                         0 /* open */, __FUNCTION__);
-  _rhoe = r;
-}
-
-void BrkgaConfiguration::setExchangeEliteCount(unsigned k) {
+void BrkgaConfiguration::setNumberOfElitesToExchange(unsigned k) {
   InvalidArgument::range(Arg<unsigned>(k, "exchange count"), Arg<unsigned>(0),
                          Arg<unsigned>(_numberOfElites, "#elites"),
                          3 /* closed */, __FUNCTION__);
@@ -173,7 +173,7 @@ void BrkgaConfiguration::setExchangeEliteCount(unsigned k) {
                          Arg<unsigned>(_populationSize / _numberOfPopulations,
                                        "|population| / #populations"),
                          3 /* closed */, __FUNCTION__);
-  _exchangeEliteCount = k;
+  _numberOfElitesToExchange = k;
 }
 
 void BrkgaConfiguration::setOmpThreads(unsigned k) {

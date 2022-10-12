@@ -411,6 +411,13 @@ __global__ void deviceExchangeElite(float* population,
 }
 
 void box::Brkga::exchangeElites() {
+  if (config.numberOfElitesToExchange() == 0
+      || config.numberOfPopulations() == 1) {
+    logger::warning("Ignoring operation: exchange",
+                    config.numberOfElitesToExchange(), "elite(s) between",
+                    config.numberOfPopulations(), "population(s)");
+    return;
+  }
   logger::debug("Sharing the", config.numberOfElitesToExchange(),
                 "best chromosomes of each one of the",
                 config.numberOfPopulations(), "populations");
