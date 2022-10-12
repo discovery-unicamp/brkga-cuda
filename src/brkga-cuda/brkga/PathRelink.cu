@@ -99,25 +99,25 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   assert(blockSize > 0);
   box::logger::debug("Running Path Relink with", base, "and", guide);
 
-  auto dChromosomes = gpu::alloc<float>(nullptr, 2 * config.chromosomeLength);
-  copyChromosome<<<gpu::blocks(config.chromosomeLength, config.threadsPerBlock),
-                   config.threadsPerBlock>>>(
-      dChromosomes, base, dPopulation.get(), config.chromosomeLength,
-      dFitnessIdx.get());
+  auto dChromosomes = gpu::alloc<float>(nullptr, 2 * config.chromosomeLength());
+  copyChromosome<<<gpu::blocks(config.chromosomeLength(), config.gpuThreads()),
+                   config.gpuThreads()>>>(dChromosomes, base, dPopulation.get(),
+                                          config.chromosomeLength(),
+                                          dFitnessIdx.get());
   CUDA_CHECK_LAST();
-  copyChromosome<<<gpu::blocks(config.chromosomeLength, config.threadsPerBlock),
-                   config.threadsPerBlock>>>(
-      dChromosomes + config.chromosomeLength, guide, dPopulation.get(),
-      config.chromosomeLength, dFitnessIdx.get());
+  copyChromosome<<<gpu::blocks(config.chromosomeLength(), config.gpuThreads()),
+                   config.gpuThreads()>>>(
+      dChromosomes + config.chromosomeLength(), guide, dPopulation.get(),
+      config.chromosomeLength(), dFitnessIdx.get());
   CUDA_CHECK_LAST();
 
-  std::vector<float> chromosomes(2 * config.chromosomeLength);
+  std::vector<float> chromosomes(2 * config.chromosomeLength());
   gpu::copy2h(nullptr, chromosomes.data(), dChromosomes,
-              2 * config.chromosomeLength);
+              2 * config.chromosomeLength());
   gpu::sync();
 
   std::vector<float> bestGenes(chromosomes.begin(),
-                               chromosomes.begin() + config.chromosomeLength);
+                               chromosomes.begin() + config.chromosomeLength());
 
   auto* dBestFitness = gpu::alloc<float>(nullptr, 1);
   copyFitness<<<1, 1>>>(dBestFitness, base, dFitness.get(), dFitnessIdx.get());
@@ -128,7 +128,7 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   box::logger::debug("Starting Path Relink with:", bestFitness);
 
   const auto numberOfSegments =
-      (config.chromosomeLength + blockSize - 1) / blockSize;
+      (config.chromosomeLength() + blockSize - 1) / blockSize;
   box::logger::debug("Number of blocks to process:", numberOfSegments);
   std::vector<unsigned> blocks(numberOfSegments);
   std::iota(blocks.begin(), blocks.end(), 0);
@@ -137,25 +137,25 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
 
   unsigned* dBlocks = nullptr;
   float* dFitnessPtr = nullptr;
-  if (!config.decodeType.onCpu()) {
+  if (!config.decodeType().onCpu()) {
     dBlocks = gpu::alloc<unsigned>(nullptr, numberOfSegments);
     dFitness = gpu::alloc<float>(nullptr, numberOfSegments);
   }
 
   unsigned id = 0;
   for (unsigned i = numberOfSegments; i > 0; --i) {
-    if (config.decodeType.onCpu()) {
+    if (config.decodeType().onCpu()) {
       buildBlocks(i, populationWrapper, chromosomes.data(), blocks.data(),
-                  blockSize, config.chromosomeLength, id);
-      config.decoder->decode(i, populationWrapper, fitness.data());
+                  blockSize, config.chromosomeLength(), id);
+      config.decoder()->decode(i, populationWrapper, fitness.data());
     } else {
       gpu::copy2d(streams[0], dChromosomes, chromosomes.data(),
                   chromosomes.size());
       gpu::copy2d(streams[0], dBlocks, blocks.data(), i);
       buildBlocksKernel<<<1, i, 0, streams[0]>>>(
           populationWrapper, dChromosomes, dBlocks, blockSize,
-          config.chromosomeLength, id);
-      config.decoder->decode(streams[0], i, populationWrapper, dFitnessPtr);
+          config.chromosomeLength(), id);
+      config.decoder()->decode(streams[0], i, populationWrapper, dFitnessPtr);
       gpu::copy2h(streams[0], fitness.data(), dFitnessPtr, i);
       gpu::sync(streams[0]);
     }
@@ -167,19 +167,20 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
     box::logger::debug("PR moved to:", fitness[bestIdx],
                        "-- incumbent:", bestFitness);
 
-    const auto baseBegin = chromosomes.begin() + id * config.chromosomeLength;
+    const auto baseBegin = chromosomes.begin() + id * config.chromosomeLength();
     const auto guideBegin =
-        chromosomes.begin() + (id ^ 1) * config.chromosomeLength;
+        chromosomes.begin() + (id ^ 1) * config.chromosomeLength();
 
     const auto changeOffset = blocks[bestIdx] * blockSize;
-    const auto bs = std::min(config.chromosomeLength - changeOffset, blockSize);
+    const auto bs =
+        std::min(config.chromosomeLength() - changeOffset, blockSize);
     auto itFrom = guideBegin + changeOffset;
     auto itTo = baseBegin + changeOffset;
     std::copy(itFrom, itFrom + bs, itTo);
 
     if (fitness[bestIdx] < bestFitness) {
       bestFitness = fitness[bestIdx];
-      std::copy(baseBegin, baseBegin + config.chromosomeLength,
+      std::copy(baseBegin, baseBegin + config.chromosomeLength(),
                 bestGenes.begin());
     }
 
@@ -204,35 +205,35 @@ void box::Brkga::runPathRelink(unsigned blockSize,
   box::logger::debug("Run Path Relink between", pairList.size(), "pairs");
 
   // FIXME add support to permutation
-  assert(config.decodeType.chromosome());
+  assert(config.decodeType().chromosome());
 
   if (blockSize < 1)
     throw std::invalid_argument("Invalid block size: "
                                 + std::to_string(blockSize));
-  if (blockSize >= config.chromosomeLength)
+  if (blockSize >= config.chromosomeLength())
     throw std::invalid_argument(
         "Block size should be less than the chromosome size otherwise"
         " Path Relink will do nothing");
 
   for (const auto& pair : pairList) {
-    if (pair.basePopulationId >= config.numberOfPopulations)
+    if (pair.basePopulationId >= config.numberOfPopulations())
       throw std::invalid_argument("Invalid base population");
-    if (pair.guidePopulationId >= config.numberOfPopulations)
+    if (pair.guidePopulationId >= config.numberOfPopulations())
       throw std::invalid_argument("Invalid guide population");
-    if (pair.baseChromosomeId >= config.populationSize)
+    if (pair.baseChromosomeId >= config.populationSize())
       throw std::invalid_argument("Invalid base chromosome");
-    if (pair.guideChromosomeId >= config.populationSize)
+    if (pair.guideChromosomeId >= config.populationSize())
       throw std::invalid_argument("Invalid guide chromosome");
   }
 
-  std::vector<unsigned> insertedCount(config.numberOfPopulations, 0);
-  auto dChromosomes = gpu::alloc<float>(nullptr, config.chromosomeLength);
+  std::vector<unsigned> insertedCount(config.numberOfPopulations(), 0);
+  auto dChromosomes = gpu::alloc<float>(nullptr, config.chromosomeLength());
 
   for (const auto& pair : pairList) {
     const auto base =
-        pair.basePopulationId * config.populationSize + pair.baseChromosomeId;
-    const auto guide =
-        pair.guidePopulationId * config.populationSize + pair.guideChromosomeId;
+        pair.basePopulationId * config.populationSize() + pair.baseChromosomeId;
+    const auto guide = pair.guidePopulationId * config.populationSize()
+                       + pair.guideChromosomeId;
 
     const auto bestGenes = pathRelink(blockSize, base, guide);
 
@@ -242,17 +243,17 @@ void box::Brkga::runPathRelink(unsigned blockSize,
 
     ++insertedCount[pair.basePopulationId];
     assert(insertedCount[pair.basePopulationId]
-           < config.populationSize - eliteSize);
+           < config.populationSize() - eliteSize);
     const auto replacedChromosomeIndex =
-        config.populationSize - insertedCount[pair.basePopulationId];
+        config.populationSize() - insertedCount[pair.basePopulationId];
 
     box::logger::debug("Copying the chromosome found back to the device");
     gpu::copy2d(nullptr, dChromosomes, bestGenes.data(),
-                config.chromosomeLength);
-    copyToDevice<<<gpu::blocks(config.chromosomeLength, config.threadsPerBlock),
-                   config.threadsPerBlock>>>(
+                config.chromosomeLength());
+    copyToDevice<<<gpu::blocks(config.chromosomeLength(), config.gpuThreads()),
+                   config.gpuThreads()>>>(
         dPopulation.row(pair.basePopulationId), replacedChromosomeIndex,
-        dChromosomes, config.chromosomeLength,
+        dChromosomes, config.chromosomeLength(),
         dFitnessIdx.row(pair.basePopulationId));
     CUDA_CHECK_LAST();
   }

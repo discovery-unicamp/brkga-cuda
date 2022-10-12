@@ -17,8 +17,8 @@ void box::Decoder::decode(unsigned numberOfChromosomes,
                           float* fitness) const {
   try {
 #ifdef _OPENMP
-#pragma omp parallel for if (config->ompThreads > 1) default(shared) \
-    num_threads(config->ompThreads)
+#pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
+    num_threads(config->ompThreads())
 #endif
     for (unsigned i = 0; i < numberOfChromosomes; ++i) {
       fitness[i] = decode(chromosomes[i]);
@@ -33,8 +33,8 @@ void box::Decoder::decode(unsigned numberOfPermutations,
                           float* fitness) const {
   try {
 #ifdef _OPENMP
-#pragma omp parallel for if (config->ompThreads > 1) default(shared) \
-    num_threads(config->ompThreads)
+#pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
+    num_threads(config->ompThreads())
 #endif
     for (unsigned i = 0; i < numberOfPermutations; ++i) {
       fitness[i] = decode(permutations[i]);

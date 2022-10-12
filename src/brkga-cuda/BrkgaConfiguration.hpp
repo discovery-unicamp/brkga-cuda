@@ -6,69 +6,84 @@
 namespace box {
 class Decoder;
 
-// FIXME some parameters are not used inside the algorithm; should we keep them?
-
+/// Configuration of the BRKGA algorithm
 class BrkgaConfiguration {
 public:
   class Builder {
   public:
+    Builder();
+    ~Builder();
+
     Builder& decoder(Decoder* d);
-    Builder& threadsPerBlock(unsigned k);
+    Builder& decodeType(DecodeType dt);
     Builder& ompThreads(unsigned k);
+    Builder& gpuThreads(unsigned k);
     Builder& numberOfPopulations(unsigned n);
     Builder& populationSize(unsigned n);
     Builder& chromosomeLength(unsigned n);
-    Builder& eliteCount(unsigned n);
-    Builder& eliteFactor(float p);
-    Builder& mutantsCount(unsigned n);
-    Builder& mutantsFactor(float p);
+    Builder& numberOfElites(unsigned n);
+    Builder& elitePercentage(float p);
+    Builder& numberOfMutants(unsigned n);
+    Builder& mutantPercentage(float p);
     Builder& rhoe(float r);
     Builder& seed(unsigned s);
-    Builder& decodeType(DecodeType dt);
 
-    BrkgaConfiguration build() const;
+    BrkgaConfiguration build();
 
   private:
-    Decoder* _decoder = nullptr;
-    unsigned _threadsPerBlock = 0;
-    unsigned _ompThreads = 1;
-    unsigned _numberOfPopulations = 0;
-    unsigned _populationSize = 0;
-    unsigned _chromosomeLength = 0;
-    unsigned _eliteCount = 0;
-    unsigned _mutantsCount = 0;
-    float _rhoe = 0;
-    unsigned _seed = 0;
-    DecodeType _decodeType;
+    BrkgaConfiguration* config;
   };
 
   virtual ~BrkgaConfiguration() = default;
 
-  [[nodiscard]] inline float getMutantsProbability() const {
-    return (float)mutantsCount / (float)populationSize;
+  inline Decoder* decoder() { return _decoder; }
+  inline const Decoder* decoder() const { return _decoder; }
+  inline DecodeType decodeType() const { return _decodeType; }
+  inline unsigned numberOfPopulations() const { return _numberOfPopulations; }
+  inline unsigned populationSize() const { return _populationSize; }
+  inline unsigned chromosomeLength() const { return _chromosomeLength; }
+  inline unsigned numberOfElites() const { return _numberOfElites; }
+  inline unsigned numberOfMutants() const { return _numberOfMutants; }
+  inline float rhoe() const { return _rhoe; }
+  inline unsigned seed() const { return _seed; }
+  inline unsigned ompThreads() const { return _ompThreads; }
+  inline unsigned gpuThreads() const { return _gpuThreads; }
+
+  inline float mutantProbability() const {
+    return (float)_numberOfMutants / (float)_populationSize;
   }
 
-  [[nodiscard]] inline float getEliteProbability() const {
-    return (float)eliteCount / (float)populationSize;
+  inline float eliteProbability() const {
+    return (float)_numberOfElites / (float)_populationSize;
   }
-
-  // TODO make private
-  Decoder* decoder;
-  DecodeType decodeType;  ///< @see DecodeType.hpp
-  unsigned threadsPerBlock;  ///< number threads per block in CUDA
-  unsigned ompThreads;  ///< number of threads to use on OpenMP
-  unsigned numberOfPopulations;  ///< number of independent populations
-  unsigned populationSize;  ///< size of the population
-  unsigned chromosomeLength;  ///< the length of the chromosome to be generated
-  unsigned eliteCount;  ///< proportion of elite population
-  unsigned mutantsCount;  ///< proportion of mutant population
-  float rhoe;  ///< probability that child gets an allele from elite parent
-  unsigned seed;  ///< the seed to use in the algorithm
 
 private:
   friend Builder;
 
-  BrkgaConfiguration() {}
+  BrkgaConfiguration()
+      : _decoder(nullptr),
+        _decodeType(),
+        _numberOfPopulations(0),
+        _populationSize(0),
+        _chromosomeLength(0),
+        _numberOfElites(0),
+        _numberOfMutants(0),
+        _rhoe(0),
+        _seed(0),
+        _ompThreads(1),
+        _gpuThreads(0) {}
+
+  Decoder* _decoder;  /// The decoder implementation
+  DecodeType _decodeType;  /// @see DecodeType.hpp
+  unsigned _numberOfPopulations;  /// Number of independent populations
+  unsigned _populationSize;  /// Size/#chromosomes of each population
+  unsigned _chromosomeLength;  /// The length of the chromosomes
+  unsigned _numberOfElites;  /// Number of elites in the population
+  unsigned _numberOfMutants;  /// Number of mutants in the population
+  float _rhoe;  /// Probability that child gets an allele from the elite parent
+  unsigned _seed;  /// The seed to use
+  unsigned _ompThreads;  /// #threads to use on OpenMP
+  unsigned _gpuThreads;  /// #threads per block for CUDA kernels
 };
 }  // namespace box
 
