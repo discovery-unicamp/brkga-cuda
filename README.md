@@ -1,4 +1,4 @@
-# BRKGA-CUDA
+# BrkgaCuda
 
 A generic framework implementing the Biased Random-Key Genetic Algorithm
 (BRKGA) for GPUs using CUDA. It aims to ease the development of BRKGA-based
@@ -17,8 +17,7 @@ This framework depends of:
 ## Usage
 
 There are some examples (for evaluation purposes)
-[here](https://github.com/abrunoaa-ic/brkga-cuda-experiments/tree/master/\
-applications/src/brkga-cuda-2.0).
+[here](https://github.com/abrunoaa-ic/brkga-cuda-experiments/tree/master/applications/src/brkga-cuda-2.0).
 The following sample illustrates how to use the framework for the Traveling
 Salesman Problem (TSP) using only the CPU to decode.
 
