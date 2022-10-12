@@ -3,6 +3,8 @@
 #include "Logger.hpp"
 #include "except/InvalidArgument.hpp"
 
+const unsigned MAX_GPU_THREADS = 1024;
+
 namespace box {
 BrkgaConfiguration::Builder::Builder() : config(new BrkgaConfiguration) {}
 
@@ -16,25 +18,9 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::decoder(Decoder* d) {
   return *this;
 }
 
-BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::ompThreads(
-    unsigned k) {
-#ifndef _OPENMP
-  if (k > 1)
-    throw std::logic_error(format(
-        "OpenMP wasn't enabled; cannot set the number of threads to", k));
-#endif  //_OPENMP
-  InvalidArgument::min(Arg<unsigned>(k, "OpenMP threads"), Arg<unsigned>(1),
-                       __FUNCTION__);
-  config->_ompThreads = k;
-  return *this;
-}
-
-BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::gpuThreads(
-    unsigned k) {
-  InvalidArgument::range(Arg<unsigned>(k, "threads per block"),
-                         Arg<unsigned>(1), Arg<unsigned>(1024),
-                         3 /* closed range */, __FUNCTION__);
-  config->_gpuThreads = k;
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::decodeType(
+    DecodeType dt) {
+  config->_decodeType = dt;
   return *this;
 }
 
@@ -67,12 +53,7 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfElites(
   if (config->_populationSize == 0)
     throw InvalidArgument(
         "You should define the population size before #elites", __FUNCTION__);
-  InvalidArgument::range(
-      Arg<unsigned>(n, "#elites"), Arg<unsigned>(1),
-      Arg<unsigned>(config->_populationSize - config->_numberOfMutants,
-                    "population - #mutants"),
-      2 /* start closed */, __FUNCTION__);
-  config->_numberOfElites = n;
+  config->setNumberOfElites(n);
   return *this;
 }
 
@@ -81,9 +62,8 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::elitePercentage(
   if (config->_populationSize == 0)
     throw InvalidArgument("You should define the population size before elite%",
                           __FUNCTION__);
-  InvalidArgument::range(Arg<float>(p, "elite%"), Arg<float>(0), Arg<float>(1),
-                         0 /* open range */, __FUNCTION__);
-  return numberOfElites((unsigned)(p * (float)config->_populationSize));
+  config->setElitePercentage(p);
+  return *this;
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfMutants(
@@ -91,12 +71,7 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfMutants(
   if (config->_populationSize == 0)
     throw InvalidArgument(
         "You should define the population size before #mutants", __FUNCTION__);
-  InvalidArgument::range(
-      Arg<unsigned>(n, "#mutants"), Arg<unsigned>(1),
-      Arg<unsigned>(config->_populationSize - config->_numberOfElites,
-                    "population - #elites"),
-      2 /* start closed */, __FUNCTION__);
-  config->_numberOfMutants = n;
+  config->setNumberOfMutants(n);
   return *this;
 }
 
@@ -105,15 +80,11 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::mutantPercentage(
   if (config->_populationSize == 0)
     throw InvalidArgument(
         "You should define the population size before mutant%", __FUNCTION__);
-  InvalidArgument::range(Arg<float>(p, "mutant%"), Arg<float>(0), Arg<float>(1),
-                         0 /* open range */, __FUNCTION__);
   return numberOfMutants((unsigned)(p * (float)config->_populationSize));
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::rhoe(float r) {
-  InvalidArgument::range(Arg<float>(r, "rhoe"), Arg<float>(.5f), Arg<float>(1),
-                         0 /* open range */, __FUNCTION__);
-  config->_rhoe = r;
+  config->setRhoe(r);
   return *this;
 }
 
@@ -122,9 +93,15 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::seed(unsigned s) {
   return *this;
 }
 
-BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::decodeType(
-    DecodeType dt) {
-  config->_decodeType = dt;
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::ompThreads(
+    unsigned k) {
+  config->setOmpThreads(k);
+  return *this;
+}
+
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::gpuThreads(
+    unsigned k) {
+  config->setGpuThreads(k);
   return *this;
 }
 
@@ -146,5 +123,57 @@ BrkgaConfiguration BrkgaConfiguration::Builder::build() {
   if (config->_gpuThreads == 0)
     throw InvalidArgument("Threads per block wasn't set", __FUNCTION__);
   return *config;
+}
+
+void BrkgaConfiguration::setNumberOfElites(unsigned n) {
+  InvalidArgument::range(Arg<unsigned>(n, "#elites"), Arg<unsigned>(1),
+                         Arg<unsigned>(_populationSize - _numberOfMutants,
+                                       "population - #mutants"),
+                         2 /* start closed */, __FUNCTION__);
+  _numberOfElites = n;
+}
+
+void BrkgaConfiguration::setElitePercentage(float p) {
+  InvalidArgument::range(Arg<float>(p, "elite%"), Arg<float>(0), Arg<float>(1),
+                         0 /* open range */, __FUNCTION__);
+  setNumberOfElites((unsigned)(p * (float)_populationSize));
+}
+
+void BrkgaConfiguration::setNumberOfMutants(unsigned n) {
+  InvalidArgument::range(
+      Arg<unsigned>(n, "#mutants"), Arg<unsigned>(1),
+      Arg<unsigned>(_populationSize - _numberOfElites, "population - #elites"),
+      2 /* start closed */, __FUNCTION__);
+  _numberOfMutants = n;
+}
+
+void BrkgaConfiguration::setMutantPercentage(float p) {
+  InvalidArgument::range(Arg<float>(p, "mutant%"), Arg<float>(0), Arg<float>(1),
+                         0 /* open range */, __FUNCTION__);
+  setNumberOfMutants((unsigned)(p * (float)_populationSize));
+}
+
+void BrkgaConfiguration::setRhoe(float r) {
+  InvalidArgument::range(Arg<float>(r, "rhoe"), Arg<float>(.5f), Arg<float>(1),
+                         0 /* open range */, __FUNCTION__);
+  _rhoe = r;
+}
+
+void BrkgaConfiguration::setOmpThreads(unsigned k) {
+#ifndef _OPENMP
+  if (k > 1)
+    throw std::logic_error(format(
+        "OpenMP wasn't enabled; cannot set the number of threads to", k));
+#endif  //_OPENMP
+  InvalidArgument::min(Arg<unsigned>(k, "OpenMP threads"), Arg<unsigned>(1),
+                       __FUNCTION__);
+  _ompThreads = k;
+}
+
+void BrkgaConfiguration::setGpuThreads(unsigned k) {
+  InvalidArgument::range(Arg<unsigned>(k, "gpu threads"), Arg<unsigned>(1),
+                         Arg<unsigned>(MAX_GPU_THREADS, "CUDA limit"),
+                         3 /* closed range */, __FUNCTION__);
+  _gpuThreads = k;
 }
 }  // namespace box

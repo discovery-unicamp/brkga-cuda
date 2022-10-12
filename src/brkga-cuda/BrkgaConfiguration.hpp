@@ -57,6 +57,14 @@ public:
     return (float)_numberOfElites / (float)_populationSize;
   }
 
+  void setNumberOfElites(unsigned n);
+  void setElitePercentage(float p);
+  void setNumberOfMutants(unsigned n);
+  void setMutantPercentage(float p);
+  void setRhoe(float r);
+  void setOmpThreads(unsigned k);
+  void setGpuThreads(unsigned k);
+
 private:
   friend Builder;
 
