@@ -1,5 +1,5 @@
 #include "Chromosome.hpp"
-#include "CudaError.cuh"
+#include "utils/GpuUtils.hpp"
 
 const unsigned TILE_DIM = 32;
 const unsigned BLOCK_ROWS = 8;

@@ -26,7 +26,6 @@ add_library(brkga-cuda
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaFilter.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Chromosome.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Chromosome.hpp
-  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaError.cuh
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Decoder.cpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Decoder.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/DecodeType.cpp

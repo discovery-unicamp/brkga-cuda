@@ -1,7 +1,6 @@
 #include "Brkga.hpp"
 #include "BrkgaConfiguration.hpp"
 #include "BrkgaFilter.hpp"
-#include "CudaError.cuh"
 #include "DecodeType.hpp"
 #include "Decoder.hpp"
 #include "Logger.hpp"

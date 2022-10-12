@@ -1,4 +1,3 @@
-#include "../CudaError.cuh"
 #include "../Logger.hpp"
 #include "GpuUtils.hpp"
 

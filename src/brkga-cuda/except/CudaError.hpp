@@ -1,5 +1,5 @@
-#ifndef BRKGA_CUDA_CUDAERROR_CUH
-#define BRKGA_CUDA_CUDAERROR_CUH
+#ifndef BOX_EXCEPT_CUDAERROR_HPP
+#define BOX_EXCEPT_CUDAERROR_HPP
 
 #include <cuda_runtime.h>
 
@@ -27,8 +27,4 @@ private:
 };
 }  // namespace box
 
-#define CUDA_CHECK(cmd) \
-  box::CudaError::_check((cmd), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define CUDA_CHECK_LAST() CUDA_CHECK(cudaPeekAtLastError())
-
-#endif  // BRKGA_CUDA_CUDAERROR_CUH
+#endif  // BOX_EXCEPT_CUDAERROR_HPP

@@ -1,6 +1,5 @@
 #include "../Brkga.hpp"
 #include "../Chromosome.hpp"
-#include "../CudaError.cuh"
 #include "../Decoder.hpp"
 #include "../Logger.hpp"
 #include "../utils/GpuUtils.hpp"

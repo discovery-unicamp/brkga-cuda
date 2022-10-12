@@ -1,8 +1,8 @@
 #ifndef BOX_UTILS_GPUUTILS_HPP
 #define BOX_UTILS_GPUUTILS_HPP
 
-#include "../CudaError.cuh"
 #include "../Logger.hpp"
+#include "../except/CudaError.hpp"
 #include "../except/InvalidArgument.hpp"
 
 #include <cuda_runtime.h>
@@ -13,6 +13,10 @@
 #include <cctype>
 #include <map>
 #include <stdexcept>
+
+#define CUDA_CHECK(cmd) \
+  box::CudaError::_check((cmd), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define CUDA_CHECK_LAST() CUDA_CHECK(cudaPeekAtLastError())
 
 namespace box {
 /// C++ wrapper for operations in the device.
