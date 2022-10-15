@@ -1,9 +1,9 @@
 #include "../Brkga.hpp"
 #include "../Chromosome.hpp"
 #include "../CudaError.cuh"
-#include "../CudaUtils.hpp"
 #include "../Decoder.hpp"
 #include "../Logger.hpp"
+#include "../utils/GpuUtils.hpp"
 
 #include <cuda_runtime.h>
 
@@ -98,30 +98,30 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   assert(blockSize > 0);
   box::logger::debug("Running Path Relink with", base, "and", guide);
 
-  auto dChromosomes = cuda::alloc<float>(nullptr, 2 * chromosomeSize);
-  copyChromosome<<<cuda::blocks(chromosomeSize, threadsPerBlock),
+  auto dChromosomes = gpu::alloc<float>(nullptr, 2 * chromosomeSize);
+  copyChromosome<<<gpu::blocks(chromosomeSize, threadsPerBlock),
                    threadsPerBlock>>>(dChromosomes, base, dPopulation.get(),
                                       chromosomeSize, dFitnessIdx.get());
   CUDA_CHECK_LAST();
-  copyChromosome<<<cuda::blocks(chromosomeSize, threadsPerBlock),
+  copyChromosome<<<gpu::blocks(chromosomeSize, threadsPerBlock),
                    threadsPerBlock>>>(dChromosomes + chromosomeSize, guide,
                                       dPopulation.get(), chromosomeSize,
                                       dFitnessIdx.get());
   CUDA_CHECK_LAST();
 
   std::vector<float> chromosomes(2 * chromosomeSize);
-  cuda::copy2h(nullptr, chromosomes.data(), dChromosomes, 2 * chromosomeSize);
-  cuda::sync();
+  gpu::copy2h(nullptr, chromosomes.data(), dChromosomes, 2 * chromosomeSize);
+  gpu::sync();
 
   std::vector<float> bestGenes(chromosomes.begin(),
                                chromosomes.begin() + chromosomeSize);
 
-  auto* dBestFitness = cuda::alloc<float>(nullptr, 1);
+  auto* dBestFitness = gpu::alloc<float>(nullptr, 1);
   copyFitness<<<1, 1>>>(dBestFitness, base, dFitness.get(), dFitnessIdx.get());
   CUDA_CHECK_LAST();
   float bestFitness = -1e30f;
-  cuda::copy2h(nullptr, &bestFitness, dBestFitness, 1);
-  cuda::free(nullptr, dBestFitness);
+  gpu::copy2h(nullptr, &bestFitness, dBestFitness, 1);
+  gpu::free(nullptr, dBestFitness);
   box::logger::debug("Starting Path Relink with:", bestFitness);
 
   const auto numberOfSegments = (chromosomeSize + blockSize - 1) / blockSize;
@@ -134,8 +134,8 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   unsigned* dBlocks = nullptr;
   float* dFitnessPtr = nullptr;
   if (!decodeType.onCpu()) {
-    dBlocks = cuda::alloc<unsigned>(nullptr, numberOfSegments);
-    dFitnessPtr = cuda::alloc<float>(nullptr, numberOfSegments);
+    dBlocks = gpu::alloc<unsigned>(nullptr, numberOfSegments);
+    dFitness = gpu::alloc<float>(nullptr, numberOfSegments);
   }
 
   unsigned id = 0;
@@ -145,15 +145,15 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
                   blockSize, chromosomeSize, id);
       decoder->decode(i, populationWrapper, fitness.data());
     } else {
-      cuda::copy2d(streams[0], dChromosomes, chromosomes.data(),
-                   chromosomes.size());
-      cuda::copy2d(streams[0], dBlocks, blocks.data(), i);
+      gpu::copy2d(streams[0], dChromosomes, chromosomes.data(),
+                  chromosomes.size());
+      gpu::copy2d(streams[0], dBlocks, blocks.data(), i);
       buildBlocksKernel<<<1, i, 0, streams[0]>>>(populationWrapper,
                                                  dChromosomes, dBlocks,
                                                  blockSize, chromosomeSize, id);
-      decoder->decode(streams[0], i, populationWrapper, dFitnessPtr);
-      cuda::copy2h(streams[0], fitness.data(), dFitnessPtr, i);
-      cuda::sync(streams[0]);
+      decoder->decode(streams[0], i, populationWrapper, dFitness);
+      gpu::copy2h(streams[0], fitness.data(), dFitness, i);
+      gpu::sync(streams[0]);
     }
 
     unsigned bestIdx = 0;
@@ -183,8 +183,8 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
 
   box::logger::debug("Path Relink finished with:", bestFitness);
 
-  cuda::free(nullptr, dChromosomes);
-  cuda::free(nullptr, dBlocks);
+  gpu::free(nullptr, dChromosomes);
+  gpu::free(nullptr, dBlocks);
   return bestGenes;
 }
 
@@ -220,7 +220,7 @@ void box::Brkga::runPathRelink(unsigned blockSize,
   }
 
   std::vector<unsigned> insertedCount(numberOfPopulations, 0);
-  auto dChromosomes = cuda::alloc<float>(nullptr, chromosomeSize);
+  auto dChromosomes = gpu::alloc<float>(nullptr, chromosomeSize);
 
   for (const auto& pair : pairList) {
     const auto base =
@@ -240,15 +240,15 @@ void box::Brkga::runPathRelink(unsigned blockSize,
         populationSize - insertedCount[pair.basePopulationId];
 
     box::logger::debug("Copying the chromosome found back to the device");
-    cuda::copy2d(nullptr, dChromosomes, bestGenes.data(), chromosomeSize);
-    copyToDevice<<<cuda::blocks(chromosomeSize, threadsPerBlock),
+    gpu::copy2d(nullptr, dChromosomes, bestGenes.data(), chromosomeSize);
+    copyToDevice<<<gpu::blocks(chromosomeSize, threadsPerBlock),
                    threadsPerBlock>>>(
         dPopulation.row(pair.basePopulationId), replacedChromosomeIndex,
         dChromosomes, chromosomeSize, dFitnessIdx.row(pair.basePopulationId));
     CUDA_CHECK_LAST();
   }
 
-  cuda::free(nullptr, dChromosomes);
+  gpu::free(nullptr, dChromosomes);
 
   // FIXME should decode only the new chromosomes, not the population
   updateFitness();

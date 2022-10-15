@@ -4,8 +4,8 @@
 #include "BrkgaConfiguration.hpp"
 #include "BrkgaFilter.hpp"
 #include "Chromosome.hpp"
-#include "CudaUtils.hpp"
 #include "PathRelinkPair.hpp"
+#include "utils/GpuUtils.hpp"
 
 #include <curand.h>  // TODO check if this header is required here
 
@@ -130,19 +130,19 @@ private:
 
   Decoder* decoder;  /// The decoder of the problem
 
-  cuda::Matrix<float> dPopulation;  /// All the chromosomes
+  gpu::Matrix<float> dPopulation;  /// All the chromosomes
   std::vector<float> population;  /// All chromosomes, but on CPU
-  cuda::Matrix<float> dPopulationTemp;  /// Temp memory for chromosomes
+  gpu::Matrix<float> dPopulationTemp;  /// Temp memory for chromosomes
   Chromosome<float>* populationWrapper;  /// Wrapper for the decoder
 
-  cuda::Matrix<float> dFitness;  /// The (sorted) fitness of each chromosome
+  gpu::Matrix<float> dFitness;  /// The (sorted) fitness of each chromosome
   std::vector<float> fitness;  /// All fitness, but on CPU
-  cuda::Matrix<unsigned> dFitnessIdx;
-  cuda::Matrix<unsigned> dPermutations;  /// Indices of the genes when sorted
+  gpu::Matrix<unsigned> dFitnessIdx;
+  gpu::Matrix<unsigned> dPermutations;  /// Indices of the genes when sorted
   std::vector<unsigned> permutations;  /// All permutations, but on CPU
 
-  cuda::Matrix<float> dRandomEliteParent;  /// The elite parent
-  cuda::Matrix<float> dRandomParent;  /// The non-elite parent
+  gpu::Matrix<float> dRandomEliteParent;  /// The elite parent
+  gpu::Matrix<float> dRandomParent;  /// The non-elite parent
 
   unsigned chromosomeSize;  /// The size of each chromosome
   unsigned populationSize;  /// The size of each population

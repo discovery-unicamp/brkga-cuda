@@ -1,8 +1,8 @@
-#ifndef BRKGA_CUDA_CUDAUTILS_CUH
-#define BRKGA_CUDA_CUDAUTILS_CUH
+#ifndef BOX_UTILS_GPUUTILS_HPP
+#define BOX_UTILS_GPUUTILS_HPP
 
-#include "CudaError.cuh"
-#include "Logger.hpp"
+#include "../CudaError.cuh"
+#include "../Logger.hpp"
 
 #include <cuda_runtime.h>
 #include <curand.h>
@@ -15,7 +15,7 @@
 
 namespace box {
 /// C++ wrapper for operations in the device.
-namespace cuda {
+namespace gpu {
 /// Synchronize the host with the main stream in the device.
 inline void sync() {
   box::logger::debug("Sync with the main stream");
@@ -322,14 +322,14 @@ private:
   std::size_t ncols;
   T* matrix;
 };
-}  // namespace cuda
+}  // namespace gpu
 }  // namespace box
 
 namespace std {
 template <class T>
-inline void swap(box::cuda::Matrix<T>& lhs, box::cuda::Matrix<T>& rhs) {
+inline void swap(box::gpu::Matrix<T>& lhs, box::gpu::Matrix<T>& rhs) {
   lhs.swap(rhs);
 }
 }  // namespace std
 
-#endif  // BRKGA_CUDA_CUDAUTILS_CUH
+#endif  // BOX_UTILS_GPUUTILS_HPP

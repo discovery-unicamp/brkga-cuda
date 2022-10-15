@@ -1,8 +1,8 @@
 #include "../Brkga.hpp"
 #include "../BrkgaFilter.hpp"
 #include "../Chromosome.hpp"
-#include "../CudaUtils.hpp"
 #include "../Logger.hpp"
+#include "../utils/GpuUtils.hpp"
 
 #include <set>
 #include <vector>
@@ -29,21 +29,21 @@ __global__ void copySorted(float* sortedPopulation,
 
 void box::Brkga::printStatus() {
   logger::debug("Copy chromosomes sorted");
-  copySorted<<<cuda::blocks(numberOfPopulations * populationSize,
-                            threadsPerBlock),
+  copySorted<<<gpu::blocks(numberOfPopulations * populationSize,
+                           threadsPerBlock),
                threadsPerBlock>>>(dPopulationTemp.get(), dFitnessIdx.get(),
                                   dPopulation.get(), numberOfPopulations,
                                   populationSize, chromosomeSize);
   CUDA_CHECK_LAST();
-  cuda::sync();
+  gpu::sync();
 
   logger::debug("Copy data to host");
   assert(decodeType.chromosome());
   population.resize(numberOfPopulations * populationSize * chromosomeSize);
   for (unsigned p = 0; p < numberOfPopulations; ++p) {
-    cuda::copy2h(streams[p],
-                 population.data() + p * populationSize * chromosomeSize,
-                 dPopulation.row(p), populationSize * chromosomeSize);
+    gpu::copy2h(streams[p],
+                population.data() + p * populationSize * chromosomeSize,
+                dPopulation.row(p), populationSize * chromosomeSize);
   }
   syncStreams();
 
@@ -85,22 +85,22 @@ void box::Brkga::removeSimilarElites(const FilterBase& filter) {
   // FIXME this block was duplicated
   population.resize(numberOfPopulations * populationSize * chromosomeSize);
   for (unsigned p = 0; p < numberOfPopulations; ++p) {
-    cuda::copy2h(streams[p],
-                 population.data() + p * populationSize * chromosomeSize,
-                 dPopulation.row(p), populationSize * chromosomeSize);
+    gpu::copy2h(streams[p],
+                population.data() + p * populationSize * chromosomeSize,
+                dPopulation.row(p), populationSize * chromosomeSize);
   }
 
   // TODO should i update the fitness too?
   // fitness.resize(numberOfPopulations * populationSize);
   // for (unsigned p = 0; p < numberOfPopulations; ++p) {
-  //   cuda::copy2h(streams[p], fitness.data() + p * populationSize,
+  //   gpu::copy2h(streams[p], fitness.data() + p * populationSize,
   //                dFitness.row(p), populationSize);
   // }
 
   std::vector<unsigned> fitnessIdx(numberOfPopulations * populationSize, -1u);
   for (unsigned p = 0; p < numberOfPopulations; ++p) {
-    cuda::copy2h(streams[p], fitnessIdx.data() + p * populationSize,
-                 dFitnessIdx.row(p), populationSize);
+    gpu::copy2h(streams[p], fitnessIdx.data() + p * populationSize,
+                dFitnessIdx.row(p), populationSize);
   }
 
   syncStreams();
@@ -155,8 +155,8 @@ void box::Brkga::removeSimilarElites(const FilterBase& filter) {
 
   logger::debug("Copying data to device");
   for (unsigned p = 0; p < numberOfPopulations; ++p) {
-    cuda::copy2d(streams[p], dFitnessIdx.row(p),
-                 fitnessIdx.data() + p * populationSize, populationSize);
+    gpu::copy2d(streams[p], dFitnessIdx.row(p),
+                fitnessIdx.data() + p * populationSize, populationSize);
   }
 
   logger::debug("Removed", duplicatedCount, "duplicated chromosomes");

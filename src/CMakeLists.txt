@@ -14,6 +14,8 @@ add_library(brkga-cuda
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/Filter.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/except/InvalidArgument.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/except/NotImplemented.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/utils/GpuUtils.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/utils/GpuUtils.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/utils/StringUtils.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.hpp
@@ -24,8 +26,6 @@ add_library(brkga-cuda
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Chromosome.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Chromosome.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaError.cuh
-  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaUtils.cu
-  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/CudaUtils.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Decoder.cpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Decoder.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/DecodeType.cpp

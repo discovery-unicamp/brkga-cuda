@@ -1,6 +1,6 @@
-#include "CudaError.cuh"
-#include "CudaUtils.hpp"
-#include "Logger.hpp"
+#include "../CudaError.cuh"
+#include "../Logger.hpp"
+#include "GpuUtils.hpp"
 
 #include <cuda_runtime.h>
 
@@ -11,7 +11,7 @@ __global__ void deviceIota(unsigned* arr, unsigned n) {
   for (unsigned i = threadIdx.x; i < n; i += blockDim.x) arr[i] = i;
 }
 
-void box::cuda::iota(cudaStream_t stream, unsigned* arr, unsigned n) {
+void box::gpu::iota(cudaStream_t stream, unsigned* arr, unsigned n) {
   constexpr auto threads = 256;
   box::logger::debug("iota on", n, "elements to array", (void*)arr, "on stream",
                      (void*)stream, "using", threads, "threads");
@@ -23,10 +23,10 @@ __global__ void deviceIotaMod(unsigned* arr, unsigned n, unsigned k) {
   for (unsigned i = threadIdx.x; i < n; i += blockDim.x) arr[i] = i % k;
 }
 
-void box::cuda::iotaMod(cudaStream_t stream,
-                        unsigned* arr,
-                        unsigned n,
-                        unsigned k) {
+void box::gpu::iotaMod(cudaStream_t stream,
+                       unsigned* arr,
+                       unsigned n,
+                       unsigned k) {
   constexpr auto threads = 256;
   box::logger::debug("iotaMod on", n, "elements mod", k, "to array", (void*)arr,
                      "on stream", (void*)stream, "using", threads, "threads");
@@ -34,8 +34,7 @@ void box::cuda::iotaMod(cudaStream_t stream,
   CUDA_CHECK_LAST();
 }
 
-auto box::cuda::_detail::CachedAllocator::allocate(std::size_t nbytes)
-    -> byte* {
+auto box::gpu::_detail::CachedAllocator::allocate(std::size_t nbytes) -> byte* {
   byte* ptr = nullptr;
 
   auto iterFree = freeMem.find(nbytes);
@@ -56,7 +55,7 @@ auto box::cuda::_detail::CachedAllocator::allocate(std::size_t nbytes)
   return ptr;
 }
 
-void box::cuda::_detail::CachedAllocator::deallocate(byte* ptr, std::size_t) {
+void box::gpu::_detail::CachedAllocator::deallocate(byte* ptr, std::size_t) {
   box::logger::debug("Save", (void*)ptr, "to the cache");
   auto iterAlloc = allocMem.find(ptr);
   assert(iterAlloc != allocMem.end());
@@ -66,46 +65,46 @@ void box::cuda::_detail::CachedAllocator::deallocate(byte* ptr, std::size_t) {
   allocMem.erase(iterAlloc);
 }
 
-void box::cuda::_detail::CachedAllocator::free() {
+void box::gpu::_detail::CachedAllocator::free() {
   box::logger::debug("Free", freeMem.size(), "unused memory in the cache");
-  for (auto pair : freeMem) box::cuda::free(nullptr, pair.second);
+  for (auto pair : freeMem) box::gpu::free(nullptr, pair.second);
   freeMem.clear();
 }
 
-box::cuda::_detail::CachedAllocator box::cuda::_detail::cachedAllocator;
+box::gpu::_detail::CachedAllocator box::gpu::_detail::cachedAllocator;
 
 // Defined by the bb_segsort implementation.
 template <class Key, class Value>
 void bbSegSort(Key*, Value*, std::size_t, std::size_t);
 
-void box::cuda::segSort(cudaStream_t stream,
-                        float* dKeys,
-                        unsigned* dValues,
-                        std::size_t segCount,
-                        std::size_t segSize) {
+void box::gpu::segSort(cudaStream_t stream,
+                       float* dKeys,
+                       unsigned* dValues,
+                       std::size_t segCount,
+                       std::size_t segSize) {
   // FIXME We need to block the host
-  cuda::sync(stream);
+  gpu::sync(stream);
   bbSegSort(dKeys, dValues, segCount, segSize);
   CUDA_CHECK_LAST();
 }
 
-box::cuda::Timer::Timer() {
+box::gpu::Timer::Timer() {
   CUDA_CHECK(cudaEventCreate(&start));
   CUDA_CHECK(cudaEventCreate(&stop));
   reset();
 }
 
-box::cuda::Timer::~Timer() {
+box::gpu::Timer::~Timer() {
   // noexcept = no CUDA_CHECK
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
 }
 
-void box::cuda::Timer::reset() {
+void box::gpu::Timer::reset() {
   CUDA_CHECK(cudaEventRecord(start));
 }
 
-float box::cuda::Timer::milliseconds() {
+float box::gpu::Timer::milliseconds() {
   CUDA_CHECK(cudaEventRecord(stop));
   CUDA_CHECK(cudaEventSynchronize(stop));
 
@@ -114,6 +113,6 @@ float box::cuda::Timer::milliseconds() {
   return ms;
 }
 
-float box::cuda::Timer::seconds() {
+float box::gpu::Timer::seconds() {
   return milliseconds() / 1000;
 }
