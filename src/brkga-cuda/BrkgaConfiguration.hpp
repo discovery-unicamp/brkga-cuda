@@ -29,6 +29,7 @@ public:
     Builder& mutantPercentage(float p);
     Builder& rhoe(float r);
     Builder& numberOfElitesToExchange(unsigned k);
+    Builder& pathRelinkBlockSize(unsigned k);
     Builder& seed(unsigned s);
 
     BrkgaConfiguration build();
@@ -46,21 +47,12 @@ public:
   inline unsigned populationSize() const { return _populationSize; }
   inline unsigned chromosomeLength() const { return _chromosomeLength; }
   inline float rhoe() const { return _rhoe; }
-
   inline unsigned numberOfElites() const { return _numberOfElites; }
-  inline float elitePercentage() const {
-    return (float)_numberOfElites / (float)_populationSize;
-  }
-
   inline unsigned numberOfMutants() const { return _numberOfMutants; }
-  inline float mutantPercentage() const {
-    return (float)_numberOfMutants / (float)_populationSize;
-  }
-
   inline unsigned numberOfElitesToExchange() const {
     return _numberOfElitesToExchange;
   }
-
+  inline unsigned pathRelinkBlockSize() const { return _pathRelinkBlockSize; }
   inline unsigned seed() const { return _seed; }
   inline unsigned ompThreads() const { return _ompThreads; }
   inline unsigned gpuThreads() const { return _gpuThreads; }
@@ -71,6 +63,7 @@ public:
   void setNumberOfMutants(unsigned n);
   void setMutantPercentage(float p);
   void setNumberOfElitesToExchange(unsigned k);
+  void setPathRelinkBlockSize(unsigned k);
   void setOmpThreads(unsigned k);
   void setGpuThreads(unsigned k);
 
@@ -87,6 +80,7 @@ private:
         _numberOfElites(0),
         _numberOfMutants(0),
         _numberOfElitesToExchange(0),
+        _pathRelinkBlockSize(0),
         _seed(0),
         _ompThreads(1),
         _gpuThreads(0) {}
@@ -100,6 +94,7 @@ private:
   unsigned _numberOfElites;  /// #elites in the population
   unsigned _numberOfMutants;  /// #mutants in the population
   unsigned _numberOfElitesToExchange;  /// #elites for @ref exchangeElites
+  unsigned _pathRelinkBlockSize;  /// Block size for @ref pathRelink
   unsigned _seed;  /// The seed to use
   unsigned _ompThreads;  /// #threads to use on OpenMP
   unsigned _gpuThreads;  /// #threads per block for CUDA kernels

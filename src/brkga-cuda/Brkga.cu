@@ -434,32 +434,6 @@ void box::Brkga::exchangeElites() {
   updateFitness();
 }
 
-std::vector<bool> box::Brkga::compareChromosomes(
-    const std::vector<PathRelinkPair>& ids,
-    const ComparatorBase& cmp) {
-  std::vector<bool> equal;
-  equal.reserve(ids.size());
-
-  std::vector<float> ch1(config.chromosomeLength());
-  std::vector<float> ch2(config.chromosomeLength());
-  for (const auto& id : ids) {
-    gpu::copy2h(nullptr, ch1.data(),
-                dPopulation.row(id.basePopulationId)
-                    + id.baseChromosomeId * config.chromosomeLength(),
-                config.chromosomeLength());
-    gpu::copy2h(nullptr, ch2.data(),
-                dPopulation.row(id.guidePopulationId)
-                    + id.guideChromosomeId * config.chromosomeLength(),
-                config.chromosomeLength());
-
-    equal.push_back(
-        cmp(Chromosome<float>(ch1.data(), config.chromosomeLength(), 0),
-            Chromosome<float>(ch2.data(), config.chromosomeLength(), 0)));
-  }
-
-  return equal;
-}
-
 std::vector<float> box::Brkga::getBestChromosome() {
   auto bestIdx = getBest();
   auto bestPopulation = bestIdx.first;

@@ -42,7 +42,7 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::populationSize(
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::chromosomeLength(
     unsigned n) {
-  InvalidArgument::min(Arg<unsigned>(n, "chromosome length"), Arg<unsigned>(2),
+  InvalidArgument::min(Arg<unsigned>(n, "|chromosome|"), Arg<unsigned>(2),
                        __FUNCTION__);
   config->_chromosomeLength = n;
   return *this;
@@ -91,6 +91,12 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::mutantPercentage(
 BrkgaConfiguration::Builder&
 BrkgaConfiguration::Builder::numberOfElitesToExchange(unsigned k) {
   config->setNumberOfElitesToExchange(k);
+  return *this;
+}
+
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::pathRelinkBlockSize(
+    unsigned k) {
+  config->setPathRelinkBlockSize(k);
   return *this;
 }
 
@@ -174,6 +180,13 @@ void BrkgaConfiguration::setNumberOfElitesToExchange(unsigned k) {
                                        "|population| / #populations"),
                          3 /* closed */, __FUNCTION__);
   _numberOfElitesToExchange = k;
+}
+
+void BrkgaConfiguration::setPathRelinkBlockSize(unsigned k) {
+  InvalidArgument::range(Arg<unsigned>(k, "pr block size"), Arg<unsigned>(1),
+                         Arg<unsigned>(_chromosomeLength, "|chromosome|"),
+                         2 /* start closed */, __FUNCTION__);
+  _pathRelinkBlockSize = k;
 }
 
 void BrkgaConfiguration::setOmpThreads(unsigned k) {

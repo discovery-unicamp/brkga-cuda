@@ -52,31 +52,20 @@ public:
   /// Copy the elites from/to all populations, except from/to itself.
   void exchangeElites();
 
-  // FIXME this is temporary
-  // @{
-  /// Run the Path Relink algorithm between pairs of chromosomes.
-  std::vector<bool> compareChromosomes(const std::vector<PathRelinkPair>& ids,
-                                       const ComparatorBase& cmp);
-
-  // TODO move blockSize to the config class
-  template <typename F, typename... Args>
-  inline void runPathRelink(unsigned blockSize,
-                            const F& selectMethod,
-                            const Args&... args) {
+  /// Use @p selectMethod to define the pairs to run the Path Relink algorithm.
+  template <typename Method, typename... Args>
+  inline void runPathRelink(const Method& selectMethod, const Args&... args) {
     const auto n = config.numberOfPopulations() * config.populationSize()
                    * config.chromosomeLength();
     population.resize(n);
     gpu::copy2h(nullptr, population.data(), dPopulation.get(), n);
-    runPathRelink(blockSize, selectMethod(config, population.data(), args...));
+    runPathRelink(selectMethod(config, population.data(), args...));
   }
 
-  void runPathRelink(unsigned blockSize,
-                     const std::vector<PathRelinkPair>& pairList);
-
-  std::vector<float> pathRelink(unsigned blockSize,
-                                unsigned base,
-                                unsigned guide);
-  // @} # temporary code
+  /// Run the Path Relink algorithm between pairs of chromosomes.
+  /// @warning This method doesn't use the permutation decoder. You should
+  ///   implement the chromosome decoder otherwise an exception will be thrown.
+  void runPathRelink(const std::vector<PathRelinkPair>& pairList);
 
   // TODO how to handle any type provided by the user without templates?
   /// Get the fitness of the best chromosome found so far.
@@ -115,6 +104,8 @@ private:
    * This operation should be executed after each change to any chromosome.
    */
   void updateFitness();
+
+  std::vector<float> pathRelink(unsigned base, unsigned guide);
 
   template <class T>
   Chromosome<T>* wrapCpu(T* pop, unsigned popId, unsigned n);

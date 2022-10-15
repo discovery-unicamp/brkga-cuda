@@ -17,6 +17,7 @@
 
 // FIXME this is an experimental feature
 
+namespace box {
 template <class T>
 __global__ void copyChromosome(T* dst,
                                const unsigned index,
@@ -53,7 +54,7 @@ __global__ void copyToDevice(T* dst,
 
 template <class T>
 __host__ __device__ void setupBlock(unsigned j,
-                                    box::Chromosome<T>* wrapper,
+                                    Chromosome<T>* wrapper,
                                     T* chromosomes,
                                     const unsigned* blocks,
                                     unsigned blockSize,
@@ -63,13 +64,12 @@ __host__ __device__ void setupBlock(unsigned j,
   const auto l = b * blockSize;
   const auto r = l + blockSize;  // Overflow will never happen here
   assert(l < chromosomeLength);
-  wrapper[j] =
-      box::Chromosome<float>(chromosomes, chromosomeLength, /* base: */ id,
-                             /* guide: */ (id ^ 1), l, r);
+  wrapper[j] = Chromosome<float>(chromosomes, chromosomeLength, /* base: */ id,
+                                 /* guide: */ (id ^ 1), l, r);
 }
 
 template <class T>
-__global__ void buildBlocksKernel(box::Chromosome<T>* wrapper,
+__global__ void buildBlocksKernel(Chromosome<T>* wrapper,
                                   T* chromosomes,
                                   const unsigned* blocks,
                                   unsigned blockSize,
@@ -81,7 +81,7 @@ __global__ void buildBlocksKernel(box::Chromosome<T>* wrapper,
 
 template <class T>
 void buildBlocks(unsigned n,
-                 box::Chromosome<T>* wrapper,
+                 Chromosome<T>* wrapper,
                  T* chromosomes,
                  const unsigned* blocks,
                  unsigned blockSize,
@@ -92,11 +92,9 @@ void buildBlocks(unsigned n,
                id);
 }
 
-std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
-                                          const unsigned base,
-                                          const unsigned guide) {
-  assert(blockSize > 0);
-  box::logger::debug("Running Path Relink with", base, "and", guide);
+std::vector<float> Brkga::pathRelink(const unsigned base,
+                                     const unsigned guide) {
+  logger::debug("Running Path Relink with", base, "and", guide);
 
   auto dChromosomes = gpu::alloc<float>(nullptr, 2 * config.chromosomeLength());
   copyChromosome<<<gpu::blocks(config.chromosomeLength(), config.gpuThreads()),
@@ -124,11 +122,12 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   float bestFitness = -1e30f;
   gpu::copy2h(nullptr, &bestFitness, dBestFitness, 1);
   gpu::free(nullptr, dBestFitness);
-  box::logger::debug("Starting Path Relink with:", bestFitness);
+  logger::debug("Starting Path Relink with:", bestFitness);
 
   const auto numberOfSegments =
-      (config.chromosomeLength() + blockSize - 1) / blockSize;
-  box::logger::debug("Number of blocks to process:", numberOfSegments);
+      (config.chromosomeLength() + config.pathRelinkBlockSize() - 1)
+      / config.pathRelinkBlockSize();
+  logger::debug("Number of blocks to process:", numberOfSegments);
   std::vector<unsigned> blocks(numberOfSegments);
   std::iota(blocks.begin(), blocks.end(), 0);
 
@@ -145,15 +144,15 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
   for (unsigned i = numberOfSegments; i > 0; --i) {
     if (config.decodeType().onCpu()) {
       buildBlocks(i, populationWrapper, chromosomes.data(), blocks.data(),
-                  blockSize, config.chromosomeLength(), id);
+                  config.pathRelinkBlockSize(), config.chromosomeLength(), id);
       config.decoder()->decode(i, populationWrapper, fitness.data());
     } else {
       gpu::copy2d(streams[0], dChromosomes, chromosomes.data(),
                   chromosomes.size());
       gpu::copy2d(streams[0], dBlocks, blocks.data(), i);
       buildBlocksKernel<<<1, i, 0, streams[0]>>>(
-          populationWrapper, dChromosomes, dBlocks, blockSize,
-          config.chromosomeLength(), id);
+          populationWrapper, dChromosomes, dBlocks,
+          config.pathRelinkBlockSize(), config.chromosomeLength(), id);
       config.decoder()->decode(streams[0], i, populationWrapper, dFitnessPtr);
       gpu::copy2h(streams[0], fitness.data(), dFitnessPtr, i);
       gpu::sync(streams[0]);
@@ -163,16 +162,16 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
     for (unsigned j = 1; j < i; ++j) {
       if (fitness[j] < fitness[bestIdx]) bestIdx = j;
     }
-    box::logger::debug("PR moved to:", fitness[bestIdx],
-                       "-- incumbent:", bestFitness);
+    logger::debug("PR moved to:", fitness[bestIdx],
+                  "-- incumbent:", bestFitness);
 
     const auto baseBegin = chromosomes.begin() + id * config.chromosomeLength();
     const auto guideBegin =
         chromosomes.begin() + (id ^ 1) * config.chromosomeLength();
 
-    const auto changeOffset = blocks[bestIdx] * blockSize;
-    const auto bs =
-        std::min(config.chromosomeLength() - changeOffset, blockSize);
+    const auto changeOffset = blocks[bestIdx] * config.pathRelinkBlockSize();
+    const auto bs = std::min(config.chromosomeLength() - changeOffset,
+                             config.pathRelinkBlockSize());
     auto itFrom = guideBegin + changeOffset;
     auto itTo = baseBegin + changeOffset;
     std::copy(itFrom, itFrom + bs, itTo);
@@ -187,42 +186,40 @@ std::vector<float> box::Brkga::pathRelink(const unsigned blockSize,
     id ^= 1;  // "Swap" the base and the guide chromosome
   }
 
-  box::logger::debug("Path Relink finished with:", bestFitness);
+  logger::debug("Path Relink finished with:", bestFitness);
 
   gpu::free(nullptr, dChromosomes);
   gpu::free(nullptr, dBlocks);
   return bestGenes;
 }
 
-void box::Brkga::runPathRelink(unsigned blockSize,
-                               const std::vector<PathRelinkPair>& pairList) {
+void Brkga::runPathRelink(const std::vector<PathRelinkPair>& pairList) {
   // TODO move the chromosomes based on the order of their fitness (for GPU)
   //   is it really necessary to move now?
   // TODO ensure population wrapper has enough capacity
-  // TODO can we implement this for the permutation without sorting every time?
-
-  box::logger::debug("Run Path Relink between", pairList.size(), "pairs");
-
   // FIXME add support to permutation
-  assert(config.decodeType().chromosome());
-
-  if (blockSize < 1)
-    throw std::invalid_argument("Invalid block size: "
-                                + std::to_string(blockSize));
-  if (blockSize >= config.chromosomeLength())
-    throw std::invalid_argument(
-        "Block size should be less than the chromosome size otherwise"
-        " Path Relink will do nothing");
+  // TODO can we implement this for the permutation without sorting every time?
+  logger::debug("Run Path Relink between", pairList.size(), "pairs");
+  if (config.pathRelinkBlockSize() == 0)
+    throw InvalidArgument("Block size wasn't defined", __FUNCTION__);
 
   for (const auto& pair : pairList) {
-    if (pair.basePopulationId >= config.numberOfPopulations())
-      throw std::invalid_argument("Invalid base population");
-    if (pair.guidePopulationId >= config.numberOfPopulations())
-      throw std::invalid_argument("Invalid guide population");
-    if (pair.baseChromosomeId >= config.populationSize())
-      throw std::invalid_argument("Invalid base chromosome");
-    if (pair.guideChromosomeId >= config.populationSize())
-      throw std::invalid_argument("Invalid guide chromosome");
+    InvalidArgument::max(
+        Arg<unsigned>(pair.basePopulationId, "base population"),
+        Arg<unsigned>(config.numberOfPopulations() - 1, "#populations - 1"),
+        __FUNCTION__);
+    InvalidArgument::max(
+        Arg<unsigned>(pair.guidePopulationId, "guide population"),
+        Arg<unsigned>(config.numberOfPopulations() - 1, "#populations - 1"),
+        __FUNCTION__);
+    InvalidArgument::max(
+        Arg<unsigned>(pair.baseChromosomeId, "base chromosome"),
+        Arg<unsigned>(config.populationSize() - 1, "|population| - 1"),
+        __FUNCTION__);
+    InvalidArgument::max(
+        Arg<unsigned>(pair.guideChromosomeId, "guide chromosome"),
+        Arg<unsigned>(config.populationSize() - 1, "|population| - 1"),
+        __FUNCTION__);
   }
 
   std::vector<unsigned> insertedCount(config.numberOfPopulations(), 0);
@@ -234,7 +231,7 @@ void box::Brkga::runPathRelink(unsigned blockSize,
     const auto guide = pair.guidePopulationId * config.populationSize()
                        + pair.guideChromosomeId;
 
-    const auto bestGenes = pathRelink(blockSize, base, guide);
+    const auto bestGenes = pathRelink(base, guide);
 
     // TODO use hamming distance/kendall tau to check if it should be included?
     //   maybe give the user a method to filter "duplicated" chromosomes with
@@ -246,7 +243,7 @@ void box::Brkga::runPathRelink(unsigned blockSize,
     const auto replacedChromosomeIndex =
         config.populationSize() - insertedCount[pair.basePopulationId];
 
-    box::logger::debug("Copying the chromosome found back to the device");
+    logger::debug("Copying the chromosome found back to the device");
     gpu::copy2d(nullptr, dChromosomes, bestGenes.data(),
                 config.chromosomeLength());
     copyToDevice<<<gpu::blocks(config.chromosomeLength(), config.gpuThreads()),
@@ -261,5 +258,6 @@ void box::Brkga::runPathRelink(unsigned blockSize,
 
   // FIXME should decode only the new chromosomes, not the population
   updateFitness();
-  box::logger::debug("The Path Relink has finished");
+  logger::debug("The Path Relink has finished");
 }
+}  // namespace box
