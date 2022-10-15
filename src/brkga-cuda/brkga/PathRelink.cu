@@ -137,7 +137,7 @@ std::vector<float> Brkga::pathRelink(const unsigned base,
   float* dFitnessPtr = nullptr;
   if (!config.decodeType().onCpu()) {
     dBlocks = gpu::alloc<unsigned>(nullptr, numberOfSegments);
-    dFitness = gpu::alloc<float>(nullptr, numberOfSegments);
+    dFitnessPtr = gpu::alloc<float>(nullptr, numberOfSegments);
   }
 
   unsigned id = 0;
