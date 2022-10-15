@@ -2,8 +2,8 @@
 #define BRKGACUDA_BRKGA_HPP
 
 #include "BrkgaConfiguration.hpp"
-#include "BrkgaFilter.hpp"
 #include "Chromosome.hpp"
+#include "Comparator.hpp"
 #include "PathRelinkPair.hpp"
 #include "utils/GpuUtils.hpp"
 
@@ -46,10 +46,9 @@ public:
   void evolve();
 
   // TODO add support to device objects
-  /// For each pair of elites, remove the worse of them if @p filter is true.
-  void removeSimilarElites(const FilterBase& filter);
+  /// For each pair of elites, remove the worse of them if @p similar is true.
+  void removeSimilarElites(const ComparatorBase& similar);
 
-  // TODO move count param to the config class
   /// Copy the elites from/to all populations, except from/to itself.
   void exchangeElites();
 
@@ -57,15 +56,18 @@ public:
   // @{
   /// Run the Path Relink algorithm between pairs of chromosomes.
   std::vector<bool> compareChromosomes(const std::vector<PathRelinkPair>& ids,
-                                       const FilterBase& cmp);
+                                       const ComparatorBase& cmp);
 
   // TODO move blockSize to the config class
   template <typename F, typename... Args>
   inline void runPathRelink(unsigned blockSize,
                             const F& selectMethod,
                             const Args&... args) {
-    runPathRelink(blockSize, selectMethod(config.numberOfPopulations(),
-                                          config.numberOfElites(), args...));
+    const auto n = config.numberOfPopulations() * config.populationSize()
+                   * config.chromosomeLength();
+    population.resize(n);
+    gpu::copy2h(nullptr, population.data(), dPopulation.get(), n);
+    runPathRelink(blockSize, selectMethod(config, population.data(), args...));
   }
 
   void runPathRelink(unsigned blockSize,
@@ -120,9 +122,6 @@ private:
   template <class T>
   Chromosome<T>* wrapGpu(T* pop, unsigned popId, unsigned n);
 
-  /// The main stream to run the operations independently
-  constexpr static cudaStream_t defaultStream = nullptr;
-
   gpu::Matrix<float> dPopulation;  /// All the chromosomes
   std::vector<float> population;  /// All chromosomes, but on CPU
   gpu::Matrix<float> dPopulationTemp;  /// Temp memory for chromosomes
@@ -139,8 +138,6 @@ private:
 
   std::vector<cudaStream_t> streams;  /// The streams to process the populations
   std::vector<curandGenerator_t> generators;  /// Random generators
-
-  unsigned threadsPerBlock;  /// Number of device threads to use
 };
 }  // namespace box
 

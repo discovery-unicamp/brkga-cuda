@@ -1,5 +1,5 @@
 #include "../Brkga.hpp"
-#include "../BrkgaFilter.hpp"
+#include "../Comparator.hpp"
 #include "../Chromosome.hpp"
 #include "../Logger.hpp"
 #include "../utils/GpuUtils.hpp"
@@ -83,7 +83,7 @@ void box::Brkga::printStatus() {
   }
 }
 
-void box::Brkga::removeSimilarElites(const FilterBase& filter) {
+void box::Brkga::removeSimilarElites(const ComparatorBase& filter) {
   logger::debug("Removing duplicated chromosomes");
 
   assert(decodeType.chromosome());

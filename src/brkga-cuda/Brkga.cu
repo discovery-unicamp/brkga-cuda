@@ -1,6 +1,6 @@
 #include "Brkga.hpp"
 #include "BrkgaConfiguration.hpp"
-#include "BrkgaFilter.hpp"
+#include "Comparator.hpp"
 #include "DecodeType.hpp"
 #include "Decoder.hpp"
 #include "Logger.hpp"
@@ -44,7 +44,6 @@ box::Brkga::Brkga(
         __FUNCTION__);
   }
 
-  // TODO save only the configuration class
   config.decoder()->setConfiguration(&config);
 
   static_assert(sizeof(Chromosome<float>) == sizeof(Chromosome<unsigned>));
@@ -437,7 +436,7 @@ void box::Brkga::exchangeElites() {
 
 std::vector<bool> box::Brkga::compareChromosomes(
     const std::vector<PathRelinkPair>& ids,
-    const FilterBase& cmp) {
+    const ComparatorBase& cmp) {
   std::vector<bool> equal;
   equal.reserve(ids.size());
 

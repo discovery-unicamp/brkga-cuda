@@ -1,6 +1,9 @@
 #ifndef BOX_PATH_RELINK_PAIR_HPP
 #define BOX_PATH_RELINK_PAIR_HPP
 
+#include "BrkgaConfiguration.hpp"
+#include "Comparator.hpp"
+
 #include <vector>
 
 namespace box {
@@ -12,37 +15,35 @@ namespace box {
  */
 class PathRelinkPair {
 public:
-  // TODO how to check if the chromosomes are different?
+  // TODO how to check if two permutations are different?
 
   /**
-   * Selects the \p k best elites of each population to run the Path Relink.
+   * Selects the @p k best elites of each population to run the Path Relink.
    *
-   * The elites of the population p are paired with the ones in the population
-   * (p + 1) % \p numberOfPopulations randomly.
-   *
-   * \param numberOfPopulations The number of populations in the BRKGA.
-   * \param numberOfElites The number of elites in the BRKGA.
-   * \param k The number of elites to take.
-   * \return A vector with the generated pairs.
+   * Each of the best @p k elites of the population p are paired with the first
+   * elite of the population (p + 1) % @p config.numberOfPopulations for which
+   * @p similar returns false. If no such chromosome exists, then the current
+   * elite will be ignored.
    */
-  static std::vector<PathRelinkPair> bestElites(unsigned numberOfPopulations,
-                                                unsigned numberOfElites,
-                                                unsigned k);
+  static std::vector<PathRelinkPair> bestElites(
+      const BrkgaConfiguration& config,
+      float* population,
+      unsigned k,
+      const ComparatorBase& similar);
 
   /**
-   * Selects \p k random elites of each population to run the Path Relink.
+   * Selects @p k random elites of each population to run the Path Relink.
    *
-   * The elites of the population p are paired with the ones in the population
-   * (p + 1) % \p numberOfPopulations randomly.
-   *
-   * \param numberOfPopulations The number of populations in the BRKGA.
-   * \param numberOfElites The number of elites in the BRKGA.
-   * \param k The number of elites to take.
-   * \return A vector with the generated pairs.
+   * Each of the @p k random elites of the population p are paired with a random
+   * elite of the population (p + 1) % @p config.numberOfPopulations for which
+   * @p similar returns false.
    */
-  static std::vector<PathRelinkPair> randomElites(unsigned numberOfPopulations,
-                                                  unsigned numberOfElites,
-                                                  unsigned k);
+  /// NOT IMPLEMENTED YET.
+  static std::vector<PathRelinkPair> randomElites(
+      const BrkgaConfiguration& config,
+      float* population,
+      unsigned k,
+      const ComparatorBase& similar);
 
   PathRelinkPair() : PathRelinkPair(-1u, -1u, -1u, -1u) {}
 

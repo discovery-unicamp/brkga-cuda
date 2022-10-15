@@ -1,5 +1,6 @@
 #include "PathRelinkPair.hpp"
 
+#include "Chromosome.hpp"
 #include "Logger.hpp"
 #include "except/InvalidArgument.hpp"
 #include "except/NotImplemented.hpp"
@@ -11,43 +12,42 @@ std::mt19937 rng(0);
 
 namespace box {
 std::vector<PathRelinkPair> PathRelinkPair::bestElites(
-    unsigned numberOfPopulations,
-    unsigned numberOfElites,
-    unsigned k) {
+    const BrkgaConfiguration& config,
+    float* population,  // TODO add support to GPU
+    unsigned k,
+    const ComparatorBase& similar) {
   InvalidArgument::range(Arg<unsigned>(k, "k"), Arg<unsigned>(1),
-                         Arg<unsigned>(numberOfElites, "#elites"),
-                         2 /* closed start */, __FUNCTION__);
+                         Arg<unsigned>(config.numberOfElites(), "#elites"),
+                         3 /* closed */, __FUNCTION__);
 
   logger::debug("Build Path Relink pairs with the best", k, "elites");
 
-  std::vector<PathRelinkPair> prPairs;
-  prPairs.reserve(numberOfPopulations * k);
+  std::vector<PathRelinkPair> pairs;
+  pairs.reserve(config.numberOfPopulations() * k);
 
-  std::vector<unsigned> bases(k);
-  std::vector<unsigned> guides(k);
-  for (unsigned p = 0; p < numberOfPopulations; ++p) {
-    for (unsigned i = 0; i < k; ++i) {
-      bases[i] = i;
-      guides[i] = i;
-    }
-
-    const auto p1 = (p + 1) % numberOfPopulations;
-    for (unsigned i = 0; i < k; ++i) {
-      std::uniform_int_distribution<unsigned> uid(0, k - i - 1);
-      const auto b = uid(rng);
-      const auto g = uid(rng);
-      prPairs.emplace_back(p, bases[b], p1, guides[g]);
-      std::swap(bases[b], bases.back());
-      std::swap(guides[g], guides.back());
-    }
+  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+    const auto p1 = (p + 1) % config.numberOfPopulations();
+    const auto pOff = p * config.populationSize();
+    const auto p1Off = p1 * config.populationSize();
+    for (unsigned base = 0; base < k; ++base)
+      for (unsigned guide = 0; guide < config.numberOfElites(); ++guide)
+        if (!similar(Chromosome<float>(population, config.chromosomeLength(),
+                                       pOff + base),
+                     Chromosome<float>(population, config.chromosomeLength(),
+                                       p1Off + guide))) {
+          pairs.emplace_back(p, base, p1, guide);
+          break;
+        }
   }
 
-  return prPairs;
+  return pairs;
 }
 
-std::vector<PathRelinkPair> PathRelinkPair::randomElites(unsigned,
-                                                         unsigned,
-                                                         unsigned) {
+std::vector<PathRelinkPair> PathRelinkPair::randomElites(
+    const BrkgaConfiguration&,
+    float*,
+    unsigned,
+    const ComparatorBase&) {
   // FIXME
   throw NotImplemented(__PRETTY_FUNCTION__);
 }

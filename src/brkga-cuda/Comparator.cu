@@ -1,7 +1,7 @@
-#include "BrkgaFilter.hpp"
+#include "Comparator.hpp"
 
 namespace box {
-bool FilterBase::operator()(const Chromosome<float>& lhs,
+bool ComparatorBase::operator()(const Chromosome<float>& lhs,
                             const Chromosome<float>& rhs) const {
   unsigned diff = 0;
   for (unsigned i = 0; i < this->chromosomeLength; ++i) {
