@@ -26,6 +26,7 @@ class Decoder;
 // typedef float Fitness;
 // typedef float Gene;
 
+/// Implements the BRKGA algorithm for GPUs
 class Brkga {
 public:
   // FIXME remove this method
@@ -44,10 +45,11 @@ public:
   /// Evolve the population to the next generation.
   void evolve();
 
+  // TODO add support to device objects
   /// For each pair of elites, remove the worse of them if \p filter is true.
-  /// TODO add support to device objects
   void removeSimilarElites(const FilterBase& filter);
 
+  // TODO move count param to the config class
   /**
    * Copy the elites from/to all populations.
    *
@@ -67,12 +69,13 @@ public:
   std::vector<bool> compareChromosomes(const std::vector<PathRelinkPair>& ids,
                                        const FilterBase& cmp);
 
+  // TODO move blockSize to the config class
   template <typename F, typename... Args>
   inline void runPathRelink(unsigned blockSize,
                             const F& selectMethod,
                             const Args&... args) {
-    runPathRelink(blockSize,
-                  selectMethod(numberOfPopulations, eliteSize, args...));
+    runPathRelink(blockSize, selectMethod(config.numberOfPopulations,
+                                          config.eliteCount, args...));
   }
 
   void runPathRelink(unsigned blockSize,
@@ -95,6 +98,8 @@ public:
   std::vector<unsigned> getBestPermutation();
 
   std::vector<DecodedChromosome> getPopulation(unsigned p);
+
+  BrkgaConfiguration config;  /// The parameters of the algorithm
 
 private:
   std::pair<unsigned, unsigned> getBest();
@@ -128,8 +133,6 @@ private:
   /// The main stream to run the operations independently
   constexpr static cudaStream_t defaultStream = nullptr;
 
-  Decoder* decoder;  /// The decoder of the problem
-
   gpu::Matrix<float> dPopulation;  /// All the chromosomes
   std::vector<float> population;  /// All chromosomes, but on CPU
   gpu::Matrix<float> dPopulationTemp;  /// Temp memory for chromosomes
@@ -144,13 +147,6 @@ private:
   gpu::Matrix<float> dRandomEliteParent;  /// The elite parent
   gpu::Matrix<float> dRandomParent;  /// The non-elite parent
 
-  unsigned chromosomeSize;  /// The size of each chromosome
-  unsigned populationSize;  /// The size of each population
-  unsigned eliteSize;  /// The number of elites in the population
-  unsigned mutantsSize;  /// The number of mutants in the population
-  unsigned numberOfPopulations;  /// The number of populations
-  float rhoe;  /// The bias to accept the elite chromosome
-  DecodeType decodeType;  /// The decode method
   std::vector<cudaStream_t> streams;  /// The streams to process the populations
   std::vector<curandGenerator_t> generators;  /// Random generators
 
