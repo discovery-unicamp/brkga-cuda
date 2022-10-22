@@ -7,7 +7,8 @@
 #include "PathRelinkPair.hpp"
 #include "utils/GpuUtils.hpp"
 
-#include <curand.h>  // TODO check if this header is required here
+#include <curand.h>
+#include <curand_kernel.h>
 
 #include <utility>
 #include <vector>
@@ -37,7 +38,8 @@ public:
   // TODO how to expose a chromosome to the decoder and another for interaction?
   /// Construct a new Brkga object.
   Brkga(const BrkgaConfiguration& config,
-        const std::vector<std::vector<std::vector<float>>>& initialPopulation);
+        const std::vector<std::vector<std::vector<float>>>& initialPopulation =
+            {});
 
   /// Releases memory.
   ~Brkga();
@@ -55,6 +57,7 @@ public:
   /// Use @p selectMethod to define the pairs to run the Path Relink algorithm.
   template <typename Method, typename... Args>
   inline void runPathRelink(const Method& selectMethod, const Args&... args) {
+    logger::debug("Using a method to select pairs for path relink");
     const auto n = config.numberOfPopulations() * config.populationSize()
                    * config.chromosomeLength();
     population.resize(n);
@@ -88,11 +91,7 @@ private:
   /// Sync all streams (except the default) with the host
   void syncStreams();
 
-  /**
-   * Call the decode method to the population `p`.
-   *
-   * @param p The index of the population to decode.
-   */
+  /// Call the decode method to the population @p p
   void decodePopulation(unsigned p);
 
   /// Sorts the indices of the chromosomes in case of sorted decode
@@ -101,7 +100,7 @@ private:
   /**
    * Ensures the fitness is sorted.
    *
-   * This operation should be executed after each change to any chromosome.
+   * This operation should be executed after updating the chromosomes.
    */
   void updateFitness();
 
@@ -124,8 +123,8 @@ private:
   gpu::Matrix<unsigned> dPermutations;  /// Indices of the genes when sorted
   std::vector<unsigned> permutations;  /// All permutations, but on CPU
 
-  gpu::Matrix<float> dRandomEliteParent;  /// The elite parent
-  gpu::Matrix<float> dRandomParent;  /// The non-elite parent
+  gpu::Matrix<unsigned> dParent;  /// The parent in the crossover
+  gpu::Matrix<curandState_t> dRandomStates;  /// RNG to select parents
 
   std::vector<cudaStream_t> streams;  /// The streams to process the populations
   std::vector<curandGenerator_t> generators;  /// Random generators

@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+#define BOX_FUNCTION __PRETTY_FUNCTION__
+
 namespace box {
 template <class T>
 struct Arg {
@@ -30,6 +32,15 @@ public:
   static inline void null(const Arg<T*>& arg, const std::string& func) {
     if (arg.value == nullptr)
       throw InvalidArgument(format(arg.name, "is null"), func);
+  }
+
+  template <class T>
+  static inline void diff(const Arg<T>& arg,
+                          const Arg<T>& expected,
+                          const std::string& func) {
+    if (arg.value != expected.value)
+      throw InvalidArgument(
+          format(arg.str(), "is not equal to", expected.str()), func);
   }
 
   template <class T>
@@ -68,7 +79,7 @@ public:
   }
 
   inline InvalidArgument(const std::string& msg, const std::string& func)
-      : Super(format(Separator(""), msg, " [function ", func, "]")) {}
+      : Super(format(msg, "@", func)) {}
 };
 }  // namespace box
 

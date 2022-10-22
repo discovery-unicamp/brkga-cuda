@@ -18,15 +18,15 @@ class ComparatorBase {
 public:
   inline ComparatorBase(unsigned _chromosomeLength, unsigned _minDiffGenes)
       : chromosomeLength(_chromosomeLength), minDiffGenes(_minDiffGenes) {
-    InvalidArgument::range(Arg<unsigned>(_minDiffGenes, "minimum difference"),
+    InvalidArgument::range(Arg<unsigned>(minDiffGenes, "minimum difference"),
                            Arg<unsigned>(0), Arg<unsigned>(chromosomeLength),
-                           1 /* end closed */, __FUNCTION__);
+                           1 /* end closed */, BOX_FUNCTION);
   }
 
   inline ComparatorBase(unsigned _chromosomeLength, float _similarityLimit)
       : ComparatorBase(
           _chromosomeLength,
-          (unsigned)((float)chromosomeLength * (1.0 - _similarityLimit))) {}
+          (unsigned)((float)_chromosomeLength * (1 - _similarityLimit))) {}
 
   /// Determines if two chromosomes are equal.
   virtual bool operator()(const Chromosome<float>& lhs,
@@ -56,7 +56,7 @@ public:
                            float _eps = 1e-7f)
       : ComparatorBase(_chromosomeLength, _minDiffGenes), eps(_eps) {
     InvalidArgument::range(Arg<float>(eps, "epsilon"), Arg<float>(0),
-                           Arg<float>(1), 0 /* open range */, __FUNCTION__);
+                           Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
   inline EpsilonComparator(unsigned _chromosomeLength,
@@ -64,7 +64,7 @@ public:
                            float _eps = 1e-7f)
       : ComparatorBase(_chromosomeLength, _similarityLimit), eps(_eps) {
     InvalidArgument::range(Arg<float>(eps, "epsilon"), Arg<float>(0),
-                           Arg<float>(1), 0 /* open range */, __FUNCTION__);
+                           Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
   inline bool isEqual(float lhs, float rhs) const {
@@ -92,7 +92,7 @@ public:
       : ComparatorBase(_chromosomeLength, _minDiffGenes),
         threshold(_threshold) {
     InvalidArgument::range(Arg<float>(threshold, "threshold"), Arg<float>(0),
-                           Arg<float>(1), 0 /* open range */, __FUNCTION__);
+                           Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
   inline ThresholdComparator(unsigned _chromosomeLength,
@@ -101,7 +101,7 @@ public:
       : ComparatorBase(_chromosomeLength, _similarityLimit),
         threshold(_threshold) {
     InvalidArgument::range(Arg<float>(threshold, "threshold"), Arg<float>(0),
-                           Arg<float>(1), 0 /* open range */, __FUNCTION__);
+                           Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
   inline bool isEqual(float lhs, float rhs) const {

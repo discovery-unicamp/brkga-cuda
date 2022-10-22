@@ -17,6 +17,16 @@
 #include <string>
 #include <vector>
 
+/// Initialize @p n @p states with given @p seed as suggested in:
+/// https://docs.nvidia.com/cuda/curand/device-api-overview.html#device-api-overview
+__global__ void initializeCurandStates(unsigned n,
+                                       curandState_t* states,
+                                       const unsigned seed) {
+  const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid >= n) return;
+  curand_init(seed, tid, 0, &states[tid]);
+}
+
 box::Brkga::Brkga(
     const BrkgaConfiguration& _config,
     const std::vector<std::vector<std::vector<float>>>& initialPopulation)
@@ -30,18 +40,34 @@ box::Brkga::Brkga(
       dFitnessIdx(config.numberOfPopulations(), config.populationSize()),
       dPermutations(config.numberOfPopulations(),
                     config.populationSize() * config.chromosomeLength()),
-      dRandomEliteParent(config.numberOfPopulations(), config.populationSize()),
-      dRandomParent(config.numberOfPopulations(), config.populationSize()) {
-  CUDA_CHECK_LAST();
-  logger::debug("Building BoxBrkga with", config.numberOfPopulations(),
-                "populations, each with", config.populationSize(),
-                "chromosomes of length", config.chromosomeLength());
-  logger::debug("Selected decoder:", config.decodeType().str());
-
+      dParent(config.numberOfPopulations(),
+              config.populationSize() * config.numberOfParents()),
+      dRandomStates(config.numberOfPopulations(), config.populationSize()) {
   if (initialPopulation.size() > config.numberOfPopulations()) {
-    throw InvalidArgument(
-        "Initial population cannot have more chromosomes than population size",
-        __FUNCTION__);
+    logger::warning(
+        "Ignoring", initialPopulation.size() - config.numberOfPopulations(),
+        "populations in initial population since it is greater than the number "
+        "of populations in the configuration",
+        format(Separator(""), "(", config.numberOfPopulations(), ")"));
+  }
+  for (unsigned p = 0; p < initialPopulation.size(); ++p) {
+    if (initialPopulation[p].size() > config.populationSize()) {
+      logger::warning("Ignoring",
+                      initialPopulation[p].size() - config.populationSize(),
+                      "chromosomes in the initial population", p,
+                      "since it is greater than the number of chromosomes in "
+                      "the configuration",
+                      format(Separator(""), "(", config.populationSize(), ")"));
+    }
+    for (unsigned k = 0; k < initialPopulation[p].size(); ++k) {
+      const auto& chromosome = initialPopulation[p][k];
+      InvalidArgument::diff(
+          Arg<unsigned>(
+              (unsigned)chromosome.size(),
+              format("length of the chromosome", k, "in the population", p)),
+          Arg<unsigned>(config.chromosomeLength(), "|chromosome|"),
+          BOX_FUNCTION);
+    }
   }
 
   config.decoder()->setConfiguration(&config);
@@ -93,6 +119,10 @@ box::Brkga::Brkga(
     }
   }
 
+  initializeCurandStates<<<gpu::blocks(totalChromosomes, config.gpuThreads()),
+                           config.gpuThreads()>>>(
+      totalChromosomes, dRandomStates.get(), config.seed());
+
   updateFitness();
   logger::debug("Brkga was configured successfully");
 }
@@ -108,6 +138,39 @@ box::Brkga::~Brkga() {
   } else {
     gpu::free(nullptr, populationWrapper);
   }
+}
+
+__device__ void rangeSample(unsigned* sample,
+                            const unsigned k,
+                            const unsigned a,
+                            const unsigned b,
+                            curandState_t* state) {
+  for (unsigned i = 0; i < k; ++i) {
+    float r = curand_uniform(state);
+    auto x = (unsigned)ceilf(r * (b - i)) - 1 + a;
+    for (unsigned j = 0; j < i && x >= sample[j]; ++j) ++x;
+    unsigned j;
+    for (j = i; j != 0 && x < sample[j - 1]; --j) sample[j] = sample[j - 1];
+    sample[j] = x;
+  }
+}
+
+__global__ void selectParents(unsigned* dParent,
+                              const unsigned n,
+                              const unsigned numberOfParents,
+                              const unsigned numberOfEliteParents,
+                              const unsigned populationSize,
+                              const unsigned numberOfElites,
+                              curandState_t* state) {
+  const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid >= n) return;
+
+  const auto nonEliteParents = numberOfParents - numberOfEliteParents;
+  rangeSample(dParent + tid * numberOfParents, nonEliteParents, 0,
+              numberOfElites, &state[tid]);
+  rangeSample(dParent + tid * numberOfParents + numberOfEliteParents,
+              numberOfEliteParents, numberOfElites, populationSize,
+              &state[tid]);
 }
 
 __global__ void evolveCopyElite(float* population,
@@ -127,55 +190,62 @@ __global__ void evolveCopyElite(float* population,
   // The fitness was already sorted with dFitnessIdx.
 }
 
+// TODO test if it is better to process many genes in the same thread
 __global__ void evolveMate(float* population,
                            const float* previousPopulation,
                            const unsigned* dFitnessIdx,
-                           const float* randomEliteParent,
-                           const float* randomParent,
+                           const unsigned* dParent,
+                           const unsigned numberOfParents,
+                           const float* dBias,
                            const unsigned populationSize,
                            const unsigned numberOfElites,
                            const unsigned numberOfMutants,
-                           const unsigned chromosomeLength,
-                           const float rhoe) {
+                           const unsigned chromosomeLength) {
+  extern __shared__ char sharedMemory[];
+
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid
       >= (populationSize - numberOfElites - numberOfMutants) * chromosomeLength)
     return;
 
-  const auto permutations = numberOfElites + tid / chromosomeLength;
-  const auto geneIdx = tid % chromosomeLength;
+  float* bias = (float*)sharedMemory;
+  for (unsigned i = tid; i < numberOfParents; i += blockDim.x)
+    bias[i] = dBias[i];
 
-  // On rare cases, the generator will return 1 in the random parent variables.
-  // Thus, we check the index and decrease it to avoid index errors.
-  unsigned parentIdx;
-  if (population[permutations * chromosomeLength + geneIdx] < rhoe) {
-    // Elite parent
-    parentIdx = (unsigned)(randomEliteParent[permutations] * numberOfElites);
-    if (parentIdx == numberOfElites) --parentIdx;
-  } else {
-    // Non-elite parent
-    parentIdx = (unsigned)(numberOfElites
-                           + randomParent[permutations]
-                                 * (populationSize - numberOfElites));
-    if (parentIdx == populationSize) --parentIdx;
+  const auto chromosome = numberOfElites + tid / chromosomeLength;
+  const auto gene = tid % chromosomeLength;
+  const auto toss = population[chromosome * chromosomeLength + gene]
+                    * bias[numberOfParents - 1];
+
+  unsigned parentIdx = 0;
+  while (toss > bias[parentIdx]) {
+    assert(parentIdx < numberOfParents);
+    ++parentIdx;
   }
 
-  const auto parent = dFitnessIdx[parentIdx];
-  population[permutations * chromosomeLength + geneIdx] =
-      previousPopulation[parent * chromosomeLength + geneIdx];
+  parentIdx = dParent[chromosome * numberOfParents + parentIdx];
+  parentIdx = dFitnessIdx[parentIdx];
+  population[chromosome * chromosomeLength + gene] =
+      previousPopulation[parentIdx * chromosomeLength + gene];
 }
 
 void box::Brkga::evolve() {
-  logger::debug("Selecting the parents for the evolution");
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+  logger::debug("Preparing to perform evolution");
+  // Used as toss in the roulette.
+  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
     gpu::random(streams[p], generators[p], dPopulationTemp.row(p),
                 config.populationSize() * config.chromosomeLength());
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
-    gpu::random(streams[p], generators[p], dRandomEliteParent.row(p),
-                config.populationSize() - config.numberOfMutants());
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
-    gpu::random(streams[p], generators[p], dRandomParent.row(p),
-                config.populationSize() - config.numberOfMutants());
+  }
+
+  // Select parents for crossover.
+  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+    const auto n = config.populationSize() - config.numberOfMutants();
+    selectParents<<<gpu::blocks(n, config.gpuThreads()), config.gpuThreads(), 0,
+                    streams[p]>>>(
+        dParent.row(p), n, config.numberOfParents(),
+        config.numberOfEliteParents(), config.populationSize(),
+        config.numberOfElites(), dRandomStates.row(p));
+  }
 
   logger::debug("Copying the elites to the next generation");
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
@@ -189,19 +259,25 @@ void box::Brkga::evolve() {
   CUDA_CHECK_LAST();
 
   logger::debug("Mating pairs of the population");
+  // Copy bias every time since it may be outdated
+  auto* dBias = gpu::alloc<float>(nullptr, config.numberOfParents());
+  gpu::copy2d(nullptr, dBias, config.bias().data(), config.numberOfParents());
+
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
     const auto blocks =
         gpu::blocks((config.populationSize() - config.numberOfElites()
                      - config.numberOfMutants())
                         * config.chromosomeLength(),
                     config.gpuThreads());
-    evolveMate<<<blocks, config.gpuThreads(), 0, streams[p]>>>(
+    const auto sharedMemory = config.numberOfParents() * sizeof(float);
+    evolveMate<<<blocks, config.gpuThreads(), sharedMemory, streams[p]>>>(
         dPopulationTemp.row(p), dPopulation.row(p), dFitnessIdx.row(p),
-        dRandomEliteParent.row(p), dRandomParent.row(p),
+        dParent.row(p), config.numberOfParents(), dBias,
         config.populationSize(), config.numberOfElites(),
-        config.numberOfMutants(), config.chromosomeLength(), config.rhoe());
+        config.numberOfMutants(), config.chromosomeLength());
   }
   CUDA_CHECK_LAST();
+  gpu::free(nullptr, dBias);
 
   // The mutants were generated in the "parent selection" above.
 
@@ -451,7 +527,7 @@ std::vector<float> box::Brkga::getBestChromosome() {
 std::vector<unsigned> box::Brkga::getBestPermutation() {
   if (config.decodeType().chromosome())
     throw InvalidArgument("The chromosome config.decoder() has no permutation",
-                          __FUNCTION__);
+                          BOX_FUNCTION);
 
   auto bestIdx = getBest();
   auto bestPopulation = bestIdx.first;

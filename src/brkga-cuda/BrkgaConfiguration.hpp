@@ -1,7 +1,10 @@
 #ifndef BRKGACUDA_BRKGACONFIGURATION_HPP
 #define BRKGACUDA_BRKGACONFIGURATION_HPP
 
+#include "Bias.hpp"
 #include "DecodeType.hpp"
+
+#include <vector>
 
 namespace box {
 class Decoder;
@@ -27,7 +30,9 @@ public:
     Builder& elitePercentage(float p);
     Builder& numberOfMutants(unsigned n);
     Builder& mutantPercentage(float p);
-    Builder& rhoe(float r);
+    Builder& parents(const std::vector<float>& bias,
+                     unsigned numberOfEliteParents);
+    Builder& parents(unsigned n, Bias biasType, unsigned numberOfEliteParents);
     Builder& numberOfElitesToExchange(unsigned k);
     Builder& pathRelinkBlockSize(unsigned k);
     Builder& seed(unsigned s);
@@ -46,7 +51,9 @@ public:
   inline unsigned numberOfPopulations() const { return _numberOfPopulations; }
   inline unsigned populationSize() const { return _populationSize; }
   inline unsigned chromosomeLength() const { return _chromosomeLength; }
-  inline float rhoe() const { return _rhoe; }
+  inline unsigned numberOfParents() const { return (unsigned)_bias.size(); }
+  inline unsigned numberOfEliteParents() const { return _numberOfEliteParents; }
+  inline const std::vector<float>& bias() const { return _bias; }
   inline unsigned numberOfElites() const { return _numberOfElites; }
   inline unsigned numberOfMutants() const { return _numberOfMutants; }
   inline unsigned numberOfElitesToExchange() const {
@@ -57,7 +64,8 @@ public:
   inline unsigned ompThreads() const { return _ompThreads; }
   inline unsigned gpuThreads() const { return _gpuThreads; }
 
-  void setRhoe(float r);
+  void setBias(const std::vector<float>& bias, unsigned numberOfEliteParents);
+  void setBias(Bias biasType, unsigned numberOfEliteParents);
   void setNumberOfElites(unsigned n);
   void setElitePercentage(float p);
   void setNumberOfMutants(unsigned n);
@@ -76,7 +84,8 @@ private:
         _numberOfPopulations(0),
         _populationSize(0),
         _chromosomeLength(0),
-        _rhoe(0),
+        _numberOfEliteParents(0),
+        _bias(),
         _numberOfElites(0),
         _numberOfMutants(0),
         _numberOfElitesToExchange(0),
@@ -90,7 +99,8 @@ private:
   unsigned _numberOfPopulations;  /// Number of independent populations
   unsigned _populationSize;  /// Size/#chromosomes of each population
   unsigned _chromosomeLength;  /// The length of the chromosomes
-  float _rhoe;  /// Probability that child gets an allele from the elite parent
+  unsigned _numberOfEliteParents;  /// Number of elite parents for mating
+  std::vector<float> _bias;  /// Probability to select the i-th parent on mating
   unsigned _numberOfElites;  /// #elites in the population
   unsigned _numberOfMutants;  /// #mutants in the population
   unsigned _numberOfElitesToExchange;  /// #elites for @ref exchangeElites
