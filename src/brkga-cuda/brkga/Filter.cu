@@ -1,6 +1,6 @@
 #include "../Brkga.hpp"
-#include "../Comparator.hpp"
 #include "../Chromosome.hpp"
+#include "../Comparator.hpp"
 #include "../Logger.hpp"
 #include "../utils/GpuUtils.hpp"
 
@@ -40,7 +40,7 @@ void box::Brkga::printStatus() {
   gpu::sync();
 
   logger::debug("Copy data to host");
-  assert(decodeType.chromosome());
+  assert(config.decodeType().chromosome());
   population.resize(config.numberOfPopulations() * config.populationSize()
                     * config.chromosomeLength());
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
@@ -86,7 +86,7 @@ void box::Brkga::printStatus() {
 void box::Brkga::removeSimilarElites(const ComparatorBase& filter) {
   logger::debug("Removing duplicated chromosomes");
 
-  assert(decodeType.chromosome());
+  assert(config.decodeType().chromosome());
   logger::debug("Copying data to host");
 
   // FIXME this block was duplicated

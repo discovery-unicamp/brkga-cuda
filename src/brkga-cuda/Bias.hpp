@@ -1,6 +1,8 @@
 #ifndef BOX_BIAS_HPP
 #define BOX_BIAS_HPP
 
+#include <string>
+
 namespace box {
 /// Probability to copy an allele from parent i (0 <= i < #parents)
 enum Bias {
@@ -22,6 +24,10 @@ enum Bias {
   /// bias(i) = 1 / log(i + 2)
   LOGARITHM,
 };
+
+/// Convert @p bias to the enum @ref Bias
+/// @throws @ref InvalidArgument if @p bias is invalid
+Bias biasFromString(const std::string& bias);
 }  // namespace box
 
 #endif  // BOX_BIAS_HPP

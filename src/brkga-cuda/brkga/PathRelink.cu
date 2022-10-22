@@ -239,7 +239,7 @@ void Brkga::runPathRelink(const std::vector<PathRelinkPair>& pairList) {
 
     ++insertedCount[pair.basePopulationId];
     assert(insertedCount[pair.basePopulationId]
-           < config.populationSize() - eliteSize);
+           < config.populationSize() - config.numberOfElites());
     const auto replacedChromosomeIndex =
         config.populationSize() - insertedCount[pair.basePopulationId];
 

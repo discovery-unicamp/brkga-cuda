@@ -27,6 +27,7 @@ class Decoder;
 // typedef float Fitness;
 // typedef float Gene;
 
+// FIXME the solution returns different results for the same seed
 /// Implements the BRKGA algorithm for GPUs
 class Brkga {
 public:

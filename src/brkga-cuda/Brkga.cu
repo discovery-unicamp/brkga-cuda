@@ -141,10 +141,11 @@ box::Brkga::~Brkga() {
 }
 
 __device__ void rangeSample(unsigned* sample,
-                            const unsigned k,
-                            const unsigned a,
-                            const unsigned b,
+                            unsigned k,
+                            unsigned a,
+                            unsigned b,
                             curandState_t* state) {
+  b -= a;
   for (unsigned i = 0; i < k; ++i) {
     float r = curand_uniform(state);
     auto x = (unsigned)ceilf(r * (b - i)) - 1 + a;
@@ -166,11 +167,18 @@ __global__ void selectParents(unsigned* dParent,
   if (tid >= n) return;
 
   const auto nonEliteParents = numberOfParents - numberOfEliteParents;
-  rangeSample(dParent + tid * numberOfParents, nonEliteParents, 0,
+  rangeSample(dParent + tid * numberOfParents, numberOfEliteParents, 0,
               numberOfElites, &state[tid]);
   rangeSample(dParent + tid * numberOfParents + numberOfEliteParents,
-              numberOfEliteParents, numberOfElites, populationSize,
-              &state[tid]);
+              nonEliteParents, numberOfElites, populationSize, &state[tid]);
+
+#ifndef NDEBUG
+  const auto* start = dParent + tid * numberOfParents;
+  for (unsigned i = 1; i < numberOfParents; ++i)
+    assert(start[i] > start[i - 1]);
+  assert(start[numberOfEliteParents - 1] < numberOfElites);
+  assert(start[numberOfParents - 1] < populationSize);
+#endif  // NDEBUG
 }
 
 __global__ void evolveCopyElite(float* population,

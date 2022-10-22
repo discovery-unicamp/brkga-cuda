@@ -17,6 +17,8 @@ add_library(brkga-cuda
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/utils/GpuUtils.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/utils/GpuUtils.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/utils/StringUtils.hpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Bias.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Bias.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/Brkga.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/BrkgaConfiguration.cpp

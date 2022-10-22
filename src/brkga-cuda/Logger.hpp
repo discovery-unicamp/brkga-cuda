@@ -43,7 +43,7 @@ inline void pbar(double completed,
     completed = 1.0;
 
   char str[10];
-  snprintf(str, sizeof(str), "[%6.1lf%%]", 100 * completed);
+  snprintf(str, sizeof(str), "[%6.2lf%%]", 100 * completed);
 
   const auto filled = (unsigned)(completed * length + 1e-6);
   std::string progress(filled, '=');
