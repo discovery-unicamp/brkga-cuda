@@ -211,19 +211,23 @@ __global__ void evolveMate(float* population,
                            const unsigned chromosomeLength) {
   extern __shared__ char sharedMemory[];
 
+  float* bias = (float*)sharedMemory;
+  for (unsigned i = threadIdx.x; i < numberOfParents; i += blockDim.x)
+    bias[i] = dBias[i];
+
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid
       >= (populationSize - numberOfElites - numberOfMutants) * chromosomeLength)
     return;
 
-  float* bias = (float*)sharedMemory;
-  for (unsigned i = tid; i < numberOfParents; i += blockDim.x)
-    bias[i] = dBias[i];
-
   const auto chromosome = numberOfElites + tid / chromosomeLength;
+  assert(chromosome < populationSize);
   const auto gene = tid % chromosomeLength;
+  __syncthreads();  // sync to ensure bias was initialized
+  assert(bias[numberOfParents - 1] > 0);
   const auto toss = population[chromosome * chromosomeLength + gene]
                     * bias[numberOfParents - 1];
+  assert(toss > 0);  // curand doesn't return 0.0
 
   unsigned parentIdx = 0;
   while (toss > bias[parentIdx]) {
@@ -231,8 +235,12 @@ __global__ void evolveMate(float* population,
     ++parentIdx;
   }
 
+  assert(dParent[chromosome * numberOfParents + parentIdx]
+         < (parentIdx < 1 ? numberOfElites : populationSize));
   parentIdx = dParent[chromosome * numberOfParents + parentIdx];
+  assert(parentIdx < populationSize);
   parentIdx = dFitnessIdx[parentIdx];
+  assert(parentIdx < populationSize);
   population[chromosome * chromosomeLength + gene] =
       previousPopulation[parentIdx * chromosomeLength + gene];
 }
@@ -247,13 +255,13 @@ void box::Brkga::evolve() {
 
   // Select parents for crossover.
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
-    const auto n = config.populationSize() - config.numberOfMutants();
-    selectParents<<<gpu::blocks(n, config.gpuThreads()), config.gpuThreads(), 0,
-                    streams[p]>>>(
-        dParent.row(p), n, config.numberOfParents(),
+    selectParents<<<gpu::blocks(config.populationSize(), config.gpuThreads()),
+                    config.gpuThreads(), 0, streams[p]>>>(
+        dParent.row(p), config.populationSize(), config.numberOfParents(),
         config.numberOfEliteParents(), config.populationSize(),
         config.numberOfElites(), dRandomStates.row(p));
   }
+  CUDA_CHECK_LAST();
 
   logger::debug("Copying the elites to the next generation");
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
