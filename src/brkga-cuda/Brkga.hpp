@@ -49,6 +49,7 @@ public:
   void evolve();
 
   // TODO add support to device objects
+  // FIXME currently should be the last method called before @ref evolve
   /// For each pair of elites, remove the worse of them if @p similar is true.
   void removeSimilarElites(const ComparatorBase& similar);
 

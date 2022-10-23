@@ -189,11 +189,11 @@ __global__ void evolveCopyElite(float* population,
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= numberOfElites * chromosomeLength) return;
 
-  const auto permutations = tid / chromosomeLength;
-  const auto geneIdx = tid % chromosomeLength;
-  const auto eliteIdx = dFitnessIdx[permutations];
-  population[permutations * chromosomeLength + geneIdx] =
-      previousPopulation[eliteIdx * chromosomeLength + geneIdx];
+  const auto chromosome = tid / chromosomeLength;
+  const auto gene = tid % chromosomeLength;
+  const auto eliteIdx = dFitnessIdx[chromosome];
+  population[chromosome * chromosomeLength + gene] =
+      previousPopulation[eliteIdx * chromosomeLength + gene];
 
   // The fitness was already sorted with dFitnessIdx.
 }
@@ -254,6 +254,8 @@ void box::Brkga::evolve() {
   }
 
   // Select parents for crossover.
+  // TODO generate only for the ones that will be updated, i.e., ignore elites
+  //   and mutants.
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
     selectParents<<<gpu::blocks(config.populationSize(), config.gpuThreads()),
                     config.gpuThreads(), 0, streams[p]>>>(
