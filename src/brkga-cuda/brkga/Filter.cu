@@ -147,20 +147,22 @@ void box::Brkga::removeSimilarElites(const ComparatorBase& filter) {
 
     unsigned k = 0;
     std::vector<unsigned> removedIdx;
-    for (unsigned i = 0; i < config.populationSize(); ++i) {
+    for (unsigned i = 0; i < remove.size(); ++i) {
       if (remove[i]) {
-        removedIdx.push_back(fitnessIdx[i]);
+        removedIdx.push_back(fitnessIdx[offset + i]);
       } else {
-        fitnessIdx[k] = fitnessIdx[i];
+        fitnessIdx[offset + k] = fitnessIdx[offset + i];
         ++k;
       }
     }
     // TODO is this enough?
     for (unsigned idx : removedIdx) {
-      fitnessIdx[k] = idx;
+      fitnessIdx[offset + k] = idx;
       ++k;
     }
-    assert((unsigned)std::set<unsigned>(fitnessIdx.begin(), fitnessIdx.end())
+    assert((unsigned)std::set<unsigned>(
+               fitnessIdx.begin() + offset,
+               fitnessIdx.begin() + offset + config.populationSize())
                .size()
            == config.populationSize());
   }
