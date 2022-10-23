@@ -122,7 +122,7 @@ std::vector<float> Brkga::pathRelink(const unsigned base,
   float bestFitness = -1e30f;
   gpu::copy2h(nullptr, &bestFitness, dBestFitness, 1);
   gpu::free(nullptr, dBestFitness);
-  logger::debug("Starting Path Relink with:", bestFitness);
+  logger::debug("Starting PR with:", bestFitness);
 
   const auto numberOfSegments =
       (config.chromosomeLength() + config.pathRelinkBlockSize() - 1)
@@ -163,7 +163,7 @@ std::vector<float> Brkga::pathRelink(const unsigned base,
       if (fitness[j] < fitness[bestIdx]) bestIdx = j;
     }
     logger::debug("PR moved to:", fitness[bestIdx],
-                  "-- incumbent:", bestFitness);
+                  format(Separator(""), "(incumbent: ", bestFitness, ")"));
 
     const auto baseBegin = chromosomes.begin() + id * config.chromosomeLength();
     const auto guideBegin =

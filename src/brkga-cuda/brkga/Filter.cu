@@ -128,36 +128,35 @@ void box::Brkga::removeSimilarElites(const ComparatorBase& comparator) {
           config.chromosomeLength(), fitnessIdx[offset + i]);
     }
 
-    unsigned popDuplicatedCount = 0;
+    unsigned k = 0;
+    std::vector<unsigned> removedIdx;
     std::vector<bool> remove(config.numberOfElites(), false);
     for (unsigned i = 0; i < config.numberOfElites(); ++i) {
       if (remove[i]) {
-        popDuplicatedCount += 1;
         // fitness[fitnessIdx[offset + i]] = badFitness;
+        removedIdx.push_back(fitnessIdx[offset + i]);
         continue;
       }
+
+      fitnessIdx[offset + k] = fitnessIdx[offset + i];
+      ++k;
       for (unsigned j = i + 1; j < config.numberOfElites(); ++j)
         remove[j] = remove[j] || comparator(elites[i], elites[j]);
     }
+    if (removedIdx.empty()) continue;
+    duplicatedCount += (unsigned)removedIdx.size();
 
-    if (popDuplicatedCount == 0) continue;
-    duplicatedCount += popDuplicatedCount;
-
-    unsigned k = 0;
-    std::vector<unsigned> removedIdx;
-    for (unsigned i = 0; i < remove.size(); ++i) {
-      if (remove[i]) {
-        removedIdx.push_back(fitnessIdx[offset + i]);
-      } else {
-        fitnessIdx[offset + k] = fitnessIdx[offset + i];
-        ++k;
-      }
-    }
     // TODO is this enough?
+    for (unsigned i = config.numberOfElites(); i < config.populationSize();
+         ++i) {
+      fitnessIdx[offset + k] = fitnessIdx[offset + i];
+      ++k;
+    }
     for (unsigned idx : removedIdx) {
       fitnessIdx[offset + k] = idx;
       ++k;
     }
+    assert(k == config.populationSize());
     assert((unsigned)std::set<unsigned>(
                fitnessIdx.begin() + offset,
                fitnessIdx.begin() + offset + config.populationSize())

@@ -27,7 +27,8 @@ public:
         chromosomeIndex(_chromosomeIndex),
         guideIndex(_guideIndex),
         guideStart(_guideStart),
-        guideEnd(_guideEnd) {
+        guideEnd(_guideEnd),
+        guidePopulation(nullptr) {
     assert(chromosomeIndex != guideIndex);
     assert(guideEnd < (1u << (8 * sizeof(unsigned) - 1)));
 
@@ -40,9 +41,7 @@ public:
 
     if (guideStart >= guideEnd) {
       guideStart = guideEnd = 0;
-#ifndef __CUDA_ARCH__
       guidePopulation = nullptr;
-#endif  // __CUDA_ARCH__
     } else {
       guideEnd -= guideStart;
     }
@@ -77,10 +76,7 @@ private:
   unsigned guideIndex;
   unsigned guideStart;
   unsigned guideEnd;
-
-#ifndef __CUDA_ARCH__
   T* guidePopulation;  // Used to speedup the population access on the CPU
-#endif  // __CUDA_ARCH__
 };
 
 template class Chromosome<float>;

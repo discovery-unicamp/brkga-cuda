@@ -40,6 +40,8 @@ std::vector<PathRelinkPair> PathRelinkPair::bestElites(
         }
   }
 
+  if (pairs.empty())
+    logger::debug("No distinct pairs found on any population");
   return pairs;
 }
 
