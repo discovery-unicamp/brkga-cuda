@@ -330,7 +330,7 @@ void box::Brkga::updateFitness() {
     fitness.resize(config.numberOfPopulations() * config.populationSize());
   }
 
-  logger::debug("Calling the config.decoder()");
+  logger::debug("Calling the decoder");
   if (config.decodeType().allAtOnce()) {
     logger::debug("Decoding all at once");
     syncStreams();
@@ -346,34 +346,34 @@ void box::Brkga::updateFitness() {
       gpu::sync(streams[p]);
       if (config.decodeType().chromosome()) {
         auto* wrap = wrapCpu(population.data(), p, n);
-        logger::debug("Entering CPU-chromosome config.decoder()");
+        logger::debug("Entering CPU-chromosome decoder");
         config.decoder()->decode(n, wrap, fitness.data() + p * n);
       } else {
         auto* wrap = wrapCpu(permutations.data(), p, n);
-        logger::debug("Entering CPU-permutation config.decoder()");
+        logger::debug("Entering CPU-permutation decoder");
         config.decoder()->decode(n, wrap, fitness.data() + p * n);
       }
-      logger::debug("The config.decoder() has finished");
+      logger::debug("The decoder has finished");
 
       logger::debug("Copying fitness back to device");
       gpu::copy2d(streams[p], dFitness.row(p), fitness.data() + p * n, n);
     } else {
       if (config.decodeType().chromosome()) {
         auto* wrap = wrapGpu(dPopulation.get(), p, n);
-        logger::debug("Entering GPU-chromosome config.decoder()");
+        logger::debug("Entering GPU-chromosome decoder");
         config.decoder()->decode(streams[p], n, wrap, dFitness.row(p));
       } else {
         auto* wrap = wrapGpu(dPermutations.get(), p, n);
-        logger::debug("Entering GPU-permutation config.decoder()");
+        logger::debug("Entering GPU-permutation decoder");
         config.decoder()->decode(streams[p], n, wrap, dFitness.row(p));
       }
       CUDA_CHECK_LAST();
-      logger::debug("The config.decoder() kernel call has finished");
+      logger::debug("The decoder kernel call has finished");
     }
 
     // Cannot sort all chromosomes since they come from different populations
     if (config.decodeType().allAtOnce()) {
-      gpu::sync(streams[0]);  // To avoid sort starting before config.decoder()
+      gpu::sync(streams[0]);  // To avoid sort starting before decoder
       for (unsigned q = 0; q < config.numberOfPopulations(); ++q) {
         gpu::iota(streams[q], dFitnessIdx.row(q), config.populationSize());
         gpu::sortByKey(streams[q], dFitness.row(q), dFitnessIdx.row(q),
@@ -414,8 +414,7 @@ __global__ void initWrapper(box::Chromosome<T>* dWrapper,
 
 template <class T>
 auto box::Brkga::wrapGpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
-  // TODO this will not work for transposed matrices with the `all`
-  // config.decoder()
+  // TODO this will not work for transposed matrices with the `all` decoder
   pop += popId * n * config.chromosomeLength();
   auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n;
 
@@ -534,7 +533,7 @@ std::vector<float> box::Brkga::getBestChromosome() {
 
 std::vector<unsigned> box::Brkga::getBestPermutation() {
   if (config.decodeType().chromosome())
-    throw InvalidArgument("The chromosome config.decoder() has no permutation",
+    throw InvalidArgument("The chromosome decoder has no permutation",
                           BOX_FUNCTION);
 
   auto bestIdx = getBest();
