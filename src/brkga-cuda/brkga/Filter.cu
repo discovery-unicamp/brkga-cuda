@@ -83,11 +83,8 @@ void box::Brkga::printStatus() {
   }
 }
 
-void box::Brkga::removeSimilarElites(const ComparatorBase& filter) {
+void box::Brkga::removeSimilarElites(const ComparatorBase& comparator) {
   logger::debug("Removing duplicated chromosomes");
-
-  assert(config.decodeType().chromosome());
-  logger::debug("Copying data to host");
 
   // FIXME this block was duplicated
   population.resize(config.numberOfPopulations() * config.populationSize()
@@ -117,11 +114,12 @@ void box::Brkga::removeSimilarElites(const ComparatorBase& filter) {
   syncStreams();
 
   unsigned duplicatedCount = 0;
-  // const float badFitness = 1e18;  // TODO replace by the worst fitness *
-  // factor
+  // TODO replace by the worst fitness * factor
+  // const float badFitness = 1e18;
 
   std::vector<box::Chromosome<float>> elites(config.numberOfElites());
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+    logger::debug("Pruning population", p);
     const auto offset = p * config.populationSize();
 
     for (unsigned i = 0; i < config.numberOfElites(); ++i) {
@@ -139,7 +137,7 @@ void box::Brkga::removeSimilarElites(const ComparatorBase& filter) {
         continue;
       }
       for (unsigned j = i + 1; j < config.numberOfElites(); ++j)
-        remove[j] = remove[j] || filter(elites[i], elites[j]);
+        remove[j] = remove[j] || comparator(elites[i], elites[j]);
     }
 
     if (popDuplicatedCount == 0) continue;
