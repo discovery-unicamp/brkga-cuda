@@ -15,9 +15,9 @@ namespace box {
 /// Check if two chromosomes are very similar.
 class ComparatorBase {
 public:
-  inline ComparatorBase(unsigned _chromosomeLength, unsigned _minDiffGenes)
+  inline ComparatorBase(unsigned _chromosomeLength, unsigned _minEqualGenes)
       : ComparatorBase(_chromosomeLength,
-                       (float)_minDiffGenes / (float)_chromosomeLength) {}
+                       (float)_minEqualGenes / (float)_chromosomeLength) {}
 
   inline ComparatorBase(unsigned _chromosomeLength, float _similarity)
       : chromosomeLength(_chromosomeLength), similarity(_similarity) {
@@ -34,7 +34,7 @@ public:
 
 protected:
   unsigned chromosomeLength;
-  float similarity;
+  float similarity;  /// The minimum % to consider two chromosomes equal
 };
 
 /**
@@ -49,9 +49,9 @@ protected:
 class EpsilonComparator : public ComparatorBase {
 public:
   inline EpsilonComparator(unsigned _chromosomeLength,
-                           unsigned _minDiffGenes,
+                           unsigned _minEqualGenes,
                            float _eps = 1e-7f)
-      : ComparatorBase(_chromosomeLength, _minDiffGenes), eps(_eps) {
+      : ComparatorBase(_chromosomeLength, _minEqualGenes), eps(_eps) {
     InvalidArgument::range(Arg<float>(eps, "epsilon"), Arg<float>(0),
                            Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
@@ -84,9 +84,9 @@ private:
 class ThresholdComparator : public ComparatorBase {
 public:
   inline ThresholdComparator(unsigned _chromosomeLength,
-                             unsigned _minDiffGenes,
+                             unsigned _minEqualGenes,
                              float _threshold)
-      : ComparatorBase(_chromosomeLength, _minDiffGenes),
+      : ComparatorBase(_chromosomeLength, _minEqualGenes),
         threshold(_threshold) {
     InvalidArgument::range(Arg<float>(threshold, "threshold"), Arg<float>(0),
                            Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
@@ -109,7 +109,7 @@ private:
 };
 
 /**
- * Check for similarity using the number of inversions of the permutation.
+ * Check for similarity using the Kendall's tau distance.
  *
  * This comparator first sort the chromosomes before performing the evaluation.
  * The comparator counts the number of inversions of the genes and uses that to
@@ -119,9 +119,9 @@ private:
  * Therefore, the chromosomes are considered very similar if:
  *   #inversions / (n * (n - 1) / 2) >= similarity
  */
-class InversionsComparator : public ComparatorBase {
+class KendallTauComparator : public ComparatorBase {
 public:
-  inline InversionsComparator(unsigned _chromosomeLength, float _similarity)
+  inline KendallTauComparator(unsigned _chromosomeLength, float _similarity)
       : ComparatorBase(_chromosomeLength, _similarity) {}
 
   bool operator()(const Chromosome<float>& lhs,

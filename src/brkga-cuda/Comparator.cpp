@@ -7,18 +7,19 @@
 namespace box {
 bool ComparatorBase::operator()(const Chromosome<float>& lhs,
                                 const Chromosome<float>& rhs) const {
-  unsigned diff = 0;
-  const auto minDiff = (unsigned)(similarity * (float)chromosomeLength);
+  unsigned equal = 0;
+  const auto minNumberToConsiderEqual =
+      (unsigned)ceil(similarity * (float)chromosomeLength);
   for (unsigned i = 0; i < chromosomeLength; ++i) {
-    if (!isEqual(lhs[i], rhs[i])) {
-      ++diff;
-      if (diff > minDiff) return false;
+    if (isEqual(lhs[i], rhs[i])) {
+      ++equal;
+      if (equal >= minNumberToConsiderEqual) return true;
     }
   }
-  return true;
+  return false;
 }
 
-bool InversionsComparator::operator()(const Chromosome<float>& lhs0,
+bool KendallTauComparator::operator()(const Chromosome<float>& lhs0,
                                       const Chromosome<float>& rhs0) const {
   const auto n = chromosomeLength;
 
@@ -38,17 +39,31 @@ bool InversionsComparator::operator()(const Chromosome<float>& lhs0,
   std::vector<unsigned> a(n);
   for (unsigned i = 0; i < n; ++i) a[lhs[i]] = rhs[i];
 
-  // Calculate the number of inversions using BIT (Fenwick Tree).
-  const auto minDiff =
-      (unsigned long)((float)((unsigned long)n * (n - 1) / 2) * similarity);
-  unsigned long diff = 0;
+  /*
+   * h = number of inversions calculated using BIT (Fenwick Tree)
+   * k = n * (n - 1) / 2 - h
+   * tau = (2 * k - n * (n - 1) / 2) / (n * (n - 1) / 2)
+   *     = 2 * k / (n * (n - 1) / 2) - 1  ==> tau \in [-1, 1]
+   *     = k / (n * (n - 1) / 2)  ==> tau \in [0, 1]
+   *
+   *                   tau >= similarity
+   * k / (n * (n - 1) / 2) >= similarity
+   *                     k >= ceil(similarity * (n * (n - 1) / 2))
+   */
+
+  const auto maxValue = (unsigned long)n * (n - 1) / 2;
+  const auto minNumberToConsiderEqual =
+      (unsigned long)ceil((double)maxValue * similarity);
+
+  unsigned long h = 0;
   std::vector<unsigned> bit(n + 1, 0);
   for (unsigned i = n - 1; i != -1u; --i) {
-    for (unsigned k = a[i] + 1; k; k -= k & -k) diff += bit[k];
-    if (diff >= minDiff) return false;
+    for (unsigned j = a[i] + 1; j; j -= j & -j) h += bit[j];
+    const auto k = n * (n - 1) / 2 - h;  // k is decreasing
+    if (k < minNumberToConsiderEqual) return false;
 
     // Will not overflow if n < ~4e7 since there are at most O(n lg n) updates
-    for (unsigned k = a[i] + 1; k <= n; k += k & -k) ++bit[k];
+    for (unsigned j = a[i] + 1; j <= n; j += j & -j) ++bit[j];
   }
 
   return true;
