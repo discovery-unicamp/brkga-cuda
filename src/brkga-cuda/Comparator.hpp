@@ -1,6 +1,7 @@
 #ifndef BOX_COMPARATOR_HPP
 #define BOX_COMPARATOR_HPP
 
+#include "BasicTypes.hpp"
 #include "Chromosome.hpp"
 #include "except/InvalidArgument.hpp"
 #include "except/NotImplemented.hpp"
@@ -26,11 +27,11 @@ public:
   }
 
   /// Check if two chromosomes are very similar.
-  virtual bool operator()(const Chromosome<float>& lhs,
-                          const Chromosome<float>& rhs) const;
+  virtual bool operator()(const Chromosome<Gene>& lhs,
+                          const Chromosome<Gene>& rhs) const;
 
   /// Check if two genes are equal.
-  virtual bool isEqual(float lhs, float rhs) const = 0;
+  virtual bool isEqual(Gene lhs, Gene rhs) const = 0;
 
 protected:
   unsigned chromosomeLength;
@@ -64,7 +65,7 @@ public:
                            Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
-  inline bool isEqual(float lhs, float rhs) const override {
+  inline bool isEqual(Gene lhs, Gene rhs) const override {
     return std::abs(lhs - rhs) < this->eps;
   }
 
@@ -100,7 +101,7 @@ public:
                            Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
-  inline bool isEqual(float lhs, float rhs) const override {
+  inline bool isEqual(Gene lhs, Gene rhs) const override {
     return (lhs < this->threshold) == (rhs < this->threshold);
   }
 
@@ -124,10 +125,10 @@ public:
   inline KendallTauComparator(unsigned _chromosomeLength, float _similarity)
       : ComparatorBase(_chromosomeLength, _similarity) {}
 
-  bool operator()(const Chromosome<float>& lhs,
-                  const Chromosome<float>& rhs) const override;
+  bool operator()(const Chromosome<Gene>& lhs,
+                  const Chromosome<Gene>& rhs) const override;
 
-  inline bool isEqual(float, float) const override {
+  inline bool isEqual(Gene, Gene) const override {
     throw NotImplemented(format(__PRETTY_FUNCTION__,
                                 "doesn't work with the inversions comparator"));
   }

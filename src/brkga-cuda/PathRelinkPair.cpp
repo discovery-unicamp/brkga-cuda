@@ -13,7 +13,7 @@ std::mt19937 rng(0);
 namespace box {
 std::vector<PathRelinkPair> PathRelinkPair::bestElites(
     const BrkgaConfiguration& config,
-    float* population,  // TODO add support to GPU
+    Gene* population,  // TODO add support to GPU
     unsigned k,
     const ComparatorBase& similar) {
   InvalidArgument::range(Arg<unsigned>(k, "k"), Arg<unsigned>(1),
@@ -31,23 +31,22 @@ std::vector<PathRelinkPair> PathRelinkPair::bestElites(
     const auto p1Off = p1 * config.populationSize();
     for (unsigned base = 0; base < k; ++base)
       for (unsigned guide = 0; guide < config.numberOfElites(); ++guide)
-        if (!similar(Chromosome<float>(population, config.chromosomeLength(),
-                                       pOff + base),
-                     Chromosome<float>(population, config.chromosomeLength(),
-                                       p1Off + guide))) {
+        if (!similar(Chromosome<Gene>(population, config.chromosomeLength(),
+                                      pOff + base),
+                     Chromosome<Gene>(population, config.chromosomeLength(),
+                                      p1Off + guide))) {
           pairs.emplace_back(p, base, p1, guide);
           break;
         }
   }
 
-  if (pairs.empty())
-    logger::debug("No distinct pairs found on any population");
+  if (pairs.empty()) logger::debug("No distinct pairs found on any population");
   return pairs;
 }
 
 std::vector<PathRelinkPair> PathRelinkPair::randomElites(
     const BrkgaConfiguration&,
-    float*,
+    Gene*,
     unsigned,
     const ComparatorBase&) {
   // FIXME

@@ -1,6 +1,7 @@
 #ifndef BOX_PATH_RELINK_PAIR_HPP
 #define BOX_PATH_RELINK_PAIR_HPP
 
+#include "BasicTypes.hpp"
 #include "BrkgaConfiguration.hpp"
 #include "Comparator.hpp"
 
@@ -27,7 +28,7 @@ public:
    */
   static std::vector<PathRelinkPair> bestElites(
       const BrkgaConfiguration& config,
-      float* population,
+      Gene* population,
       unsigned k,
       const ComparatorBase& similar);
 
@@ -41,7 +42,7 @@ public:
   /// NOT IMPLEMENTED YET.
   static std::vector<PathRelinkPair> randomElites(
       const BrkgaConfiguration& config,
-      float* population,
+      Gene* population,
       unsigned k,
       const ComparatorBase& similar);
 

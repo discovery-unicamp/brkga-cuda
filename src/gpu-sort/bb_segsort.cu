@@ -3,7 +3,7 @@
 
 #include <cuda_runtime.h>
 
-#include <cinttypes>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -60,7 +60,23 @@ void bbSegSort(Key* keys,
 }
 
 // Define the required interfaces for brkga-cuda
+
 template BB_SEGSORT_EXPORT void bbSegSort(float*,
-                                          unsigned*,
+                                          std::uint32_t*,
+                                          std::size_t,
+                                          std::size_t);
+
+template BB_SEGSORT_EXPORT void bbSegSort(double*,
+                                          std::uint32_t*,
+                                          std::size_t,
+                                          std::size_t);
+
+template BB_SEGSORT_EXPORT void bbSegSort(float*,
+                                          std::uint64_t*,
+                                          std::size_t,
+                                          std::size_t);
+
+template BB_SEGSORT_EXPORT void bbSegSort(double*,
+                                          std::uint64_t*,
                                           std::size_t,
                                           std::size_t);

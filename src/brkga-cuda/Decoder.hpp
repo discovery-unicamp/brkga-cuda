@@ -1,6 +1,7 @@
 #ifndef SRC_BRKGA_INSTANCE_HPP
 #define SRC_BRKGA_INSTANCE_HPP
 
+#include "BasicTypes.hpp"
 #include "BrkgaConfiguration.hpp"
 #include "Chromosome.hpp"
 
@@ -19,27 +20,27 @@ public:
 
   void setConfiguration(const BrkgaConfiguration* newConfig);
 
-  virtual float decode(const Chromosome<float>& chromosome) const;
+  virtual Fitness decode(const Chromosome<Gene>& chromosome) const;
 
-  virtual float decode(const Chromosome<unsigned>& permutation) const;
+  virtual Fitness decode(const Chromosome<unsigned>& permutation) const;
 
   virtual void decode(unsigned numberOfChromosomes,
-                      const Chromosome<float>* chromosomes,
-                      float* fitness) const;
+                      const Chromosome<Gene>* chromosomes,
+                      Fitness* fitness) const;
 
   virtual void decode(unsigned numberOfPermutations,
                       const Chromosome<unsigned>* permutations,
-                      float* fitness) const;
+                      Fitness* fitness) const;
 
   virtual void decode(cudaStream_t stream,
                       unsigned numberOfChromosomes,
-                      const Chromosome<float>* dChromosomes,
-                      float* dFitness) const;
+                      const Chromosome<Gene>* dChromosomes,
+                      Fitness* dFitness) const;
 
   virtual void decode(cudaStream_t stream,
                       unsigned numberOfPermutations,
                       const Chromosome<unsigned>* dPermutations,
-                      float* dFitness) const;
+                      Fitness* dFitness) const;
 
 protected:
   const box::BrkgaConfiguration* config;

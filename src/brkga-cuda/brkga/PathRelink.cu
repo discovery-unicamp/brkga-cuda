@@ -1,3 +1,4 @@
+#include "../BasicTypes.hpp"
 #include "../Brkga.hpp"
 #include "../Chromosome.hpp"
 #include "../Decoder.hpp"
@@ -31,9 +32,9 @@ __global__ void copyChromosome(T* dst,
   dst[k] = src[sortedIndex * chromosomeLength + k];
 }
 
-__global__ void copyFitness(float* fitness,
+__global__ void copyFitness(box::Fitness* fitness,
                             unsigned index,
-                            float* dFitness,
+                            box::Fitness* dFitness,
                             unsigned* dFitnessIdx) {
   const auto sortedIndex = dFitnessIdx[index];
   *fitness = dFitness[sortedIndex];
@@ -64,8 +65,8 @@ __host__ __device__ void setupBlock(unsigned j,
   const auto l = b * blockSize;
   const auto r = l + blockSize;  // Overflow will never happen here
   assert(l < chromosomeLength);
-  wrapper[j] = Chromosome<float>(chromosomes, chromosomeLength, /* base: */ id,
-                                 /* guide: */ (id ^ 1), l, r);
+  wrapper[j] = Chromosome<Gene>(chromosomes, chromosomeLength, /* base: */ id,
+                                /* guide: */ (id ^ 1), l, r);
 }
 
 template <class T>
@@ -92,11 +93,10 @@ void buildBlocks(unsigned n,
                id);
 }
 
-std::vector<float> Brkga::pathRelink(const unsigned base,
-                                     const unsigned guide) {
+std::vector<Gene> Brkga::pathRelink(const unsigned base, const unsigned guide) {
   logger::debug("Running Path Relink with", base, "and", guide);
 
-  auto dChromosomes = gpu::alloc<float>(nullptr, 2 * config.chromosomeLength());
+  auto dChromosomes = gpu::alloc<Gene>(nullptr, 2 * config.chromosomeLength());
   copyChromosome<<<gpu::blocks(config.chromosomeLength(), config.gpuThreads()),
                    config.gpuThreads()>>>(dChromosomes, base, dPopulation.get(),
                                           config.chromosomeLength(),
@@ -108,18 +108,18 @@ std::vector<float> Brkga::pathRelink(const unsigned base,
       config.chromosomeLength(), dFitnessIdx.get());
   CUDA_CHECK_LAST();
 
-  std::vector<float> chromosomes(2 * config.chromosomeLength());
+  std::vector<Gene> chromosomes(2 * config.chromosomeLength());
   gpu::copy2h(nullptr, chromosomes.data(), dChromosomes,
               2 * config.chromosomeLength());
   gpu::sync();
 
-  std::vector<float> bestGenes(chromosomes.begin(),
-                               chromosomes.begin() + config.chromosomeLength());
+  std::vector<Gene> bestGenes(chromosomes.begin(),
+                              chromosomes.begin() + config.chromosomeLength());
 
-  auto* dBestFitness = gpu::alloc<float>(nullptr, 1);
+  auto* dBestFitness = gpu::alloc<box::Fitness>(nullptr, 1);
   copyFitness<<<1, 1>>>(dBestFitness, base, dFitness.get(), dFitnessIdx.get());
   CUDA_CHECK_LAST();
-  float bestFitness = -1e30f;
+  box::Fitness bestFitness = -1e30f;
   gpu::copy2h(nullptr, &bestFitness, dBestFitness, 1);
   gpu::free(nullptr, dBestFitness);
   logger::debug("Starting PR with:", bestFitness);
@@ -134,10 +134,10 @@ std::vector<float> Brkga::pathRelink(const unsigned base,
   fitness.resize(numberOfSegments);
 
   unsigned* dBlocks = nullptr;
-  float* dFitnessPtr = nullptr;
+  box::Fitness* dFitnessPtr = nullptr;
   if (!config.decodeType().onCpu()) {
     dBlocks = gpu::alloc<unsigned>(nullptr, numberOfSegments);
-    dFitnessPtr = gpu::alloc<float>(nullptr, numberOfSegments);
+    dFitnessPtr = gpu::alloc<box::Fitness>(nullptr, numberOfSegments);
   }
 
   unsigned id = 0;
@@ -223,7 +223,7 @@ void Brkga::runPathRelink(const std::vector<PathRelinkPair>& pairList) {
   }
 
   std::vector<unsigned> insertedCount(config.numberOfPopulations(), 0);
-  auto dChromosomes = gpu::alloc<float>(nullptr, config.chromosomeLength());
+  auto dChromosomes = gpu::alloc<Gene>(nullptr, config.chromosomeLength());
 
   for (const auto& pair : pairList) {
     const auto base =

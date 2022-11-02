@@ -12,17 +12,17 @@ void Decoder::setConfiguration(const BrkgaConfiguration* newConfig) {
   config = newConfig;
 }
 
-float Decoder::decode(const Chromosome<float>&) const {
+Fitness Decoder::decode(const Chromosome<Gene>&) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
-float Decoder::decode(const Chromosome<unsigned>&) const {
+Fitness Decoder::decode(const Chromosome<unsigned>&) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
 void Decoder::decode(unsigned numberOfChromosomes,
-                     const Chromosome<float>* chromosomes,
-                     float* fitness) const {
+                     const Chromosome<Gene>* chromosomes,
+                     Fitness* fitness) const {
   try {
 #ifdef _OPENMP
 #pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
@@ -38,7 +38,7 @@ void Decoder::decode(unsigned numberOfChromosomes,
 
 void Decoder::decode(unsigned numberOfPermutations,
                      const Chromosome<unsigned>* permutations,
-                     float* fitness) const {
+                     Fitness* fitness) const {
   try {
 #ifdef _OPENMP
 #pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
@@ -54,15 +54,15 @@ void Decoder::decode(unsigned numberOfPermutations,
 
 void Decoder::decode(cudaStream_t,
                      unsigned,
-                     const Chromosome<float>*,
-                     float*) const {
+                     const Chromosome<Gene>*,
+                     Fitness*) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
 void Decoder::decode(cudaStream_t,
                      unsigned,
                      const Chromosome<unsigned>*,
-                     float*) const {
+                     Fitness*) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 }  // namespace box

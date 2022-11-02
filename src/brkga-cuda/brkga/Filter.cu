@@ -1,3 +1,4 @@
+#include "../BasicTypes.hpp"
 #include "../Brkga.hpp"
 #include "../Chromosome.hpp"
 #include "../Comparator.hpp"
@@ -7,9 +8,10 @@
 #include <set>
 #include <vector>
 
-__global__ void copySorted(float* sortedPopulation,
+namespace box {
+__global__ void copySorted(Gene* sortedPopulation,
                            const unsigned* fitnessIdx,
-                           const float* population,
+                           const Gene* population,
                            unsigned numberOfPopulations,
                            unsigned populationSize,
                            unsigned chromosomeLength) {
@@ -18,16 +20,15 @@ __global__ void copySorted(float* sortedPopulation,
 
   const auto p = tid / populationSize;
   const auto c = tid % populationSize;
-  const float* from =
-      population
-      + (p * populationSize + fitnessIdx[p * populationSize + c])
-            * chromosomeLength;
-  float* to = sortedPopulation + tid * chromosomeLength;
+  const auto* from = population
+                     + (p * populationSize + fitnessIdx[p * populationSize + c])
+                           * chromosomeLength;
+  auto* to = sortedPopulation + tid * chromosomeLength;
 
   for (unsigned i = 0; i < chromosomeLength; ++i) to[i] = from[i];
 }
 
-void box::Brkga::printStatus() {
+void Brkga::printStatus() {
   logger::debug("Copy chromosomes sorted");
   copySorted<<<gpu::blocks(
                    config.numberOfPopulations() * config.populationSize(),
@@ -57,10 +58,10 @@ void box::Brkga::printStatus() {
     unsigned k = 0;
     for (unsigned i = 0; i < config.numberOfElites(); i += k) {
       for (k = 1; i + k < config.populationSize(); ++k) {
-        const float* ci = population.data()
-                          + (p * config.populationSize() + i + k - 1)
-                                * config.chromosomeLength();
-        const float* ck =
+        const auto* ci = population.data()
+                         + (p * config.populationSize() + i + k - 1)
+                               * config.chromosomeLength();
+        const auto* ck =
             population.data()
             + (p * config.populationSize() + i + k) * config.chromosomeLength();
 
@@ -83,7 +84,7 @@ void box::Brkga::printStatus() {
   }
 }
 
-void box::Brkga::removeSimilarElites(const ComparatorBase& comparator) {
+void Brkga::removeSimilarElites(const ComparatorBase& comparator) {
   logger::debug("Removing duplicated chromosomes");
 
   // FIXME this block was duplicated
@@ -117,13 +118,13 @@ void box::Brkga::removeSimilarElites(const ComparatorBase& comparator) {
   // TODO replace by the worst fitness * factor
   // const float badFitness = 1e18;
 
-  std::vector<box::Chromosome<float>> elites(config.numberOfElites());
+  std::vector<Chromosome<Gene>> elites(config.numberOfElites());
   for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
     logger::debug("Pruning population", p);
     const auto offset = p * config.populationSize();
 
     for (unsigned i = 0; i < config.numberOfElites(); ++i) {
-      elites[i] = Chromosome<float>(
+      elites[i] = Chromosome<Gene>(
           population.data() + offset * config.chromosomeLength(),
           config.chromosomeLength(), fitnessIdx[offset + i]);
     }
@@ -173,3 +174,4 @@ void box::Brkga::removeSimilarElites(const ComparatorBase& comparator) {
 
   logger::debug("Removed", duplicatedCount, "duplicated chromosomes");
 }
+}  // namespace box

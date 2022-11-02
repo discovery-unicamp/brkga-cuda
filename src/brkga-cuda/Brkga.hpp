@@ -1,6 +1,7 @@
 #ifndef BRKGACUDA_BRKGA_HPP
 #define BRKGACUDA_BRKGA_HPP
 
+#include "BasicTypes.hpp"
 #include "BrkgaConfiguration.hpp"
 #include "Chromosome.hpp"
 #include "Comparator.hpp"
@@ -15,17 +16,13 @@
 
 // FIXME create a clear declaration of this structure
 struct DecodedChromosome {
-  float fitness;
-  std::vector<float> genes;  // FIXME create a typedef for the gene type
+  box::Fitness fitness;
+  std::vector<box::Gene> genes;  // FIXME create a typedef for the gene type
 };
 
 namespace box {
 class DecodeType;
 class Decoder;
-
-// FIXME use this typedef
-// typedef float Fitness;
-// typedef float Gene;
 
 // FIXME the solution returns different results for the same seed
 /// Implements the BRKGA algorithm for GPUs
@@ -39,7 +36,7 @@ public:
   // TODO how to expose a chromosome to the decoder and another for interaction?
   /// Construct a new Brkga object.
   Brkga(const BrkgaConfiguration& config,
-        const std::vector<std::vector<std::vector<float>>>& initialPopulation =
+        const std::vector<std::vector<std::vector<Gene>>>& initialPopulation =
             {});
 
   /// Releases memory.
@@ -74,10 +71,10 @@ public:
 
   // TODO how to handle any type provided by the user without templates?
   /// Get the fitness of the best chromosome found so far.
-  float getBestFitness();
+  Fitness getBestFitness();
 
   /// Get the genes of the best chromosome found so far.
-  std::vector<float> getBestChromosome();
+  std::vector<Gene> getBestChromosome();
 
   /// Get the permutation of the best chromosome found so far.
   /// @throw `std::runtime_error` If the decode type is a non-sorted one.
@@ -106,7 +103,7 @@ private:
    */
   void updateFitness();
 
-  std::vector<float> pathRelink(unsigned base, unsigned guide);
+  std::vector<Gene> pathRelink(unsigned base, unsigned guide);
 
   template <class T>
   Chromosome<T>* wrapCpu(T* pop, unsigned popId, unsigned n);
@@ -114,13 +111,13 @@ private:
   template <class T>
   Chromosome<T>* wrapGpu(T* pop, unsigned popId, unsigned n);
 
-  gpu::Matrix<float> dPopulation;  /// All the chromosomes
-  std::vector<float> population;  /// All chromosomes, but on CPU
-  gpu::Matrix<float> dPopulationTemp;  /// Temp memory for chromosomes
-  Chromosome<float>* populationWrapper;  /// Wrapper for the decoder
+  gpu::Matrix<Gene> dPopulation;  /// All the chromosomes
+  std::vector<Gene> population;  /// All chromosomes, but on CPU
+  gpu::Matrix<Gene> dPopulationTemp;  /// Temp memory for chromosomes
+  Chromosome<Gene>* populationWrapper;  /// Wrapper for the decoder
 
-  gpu::Matrix<float> dFitness;  /// The (sorted) fitness of each chromosome
-  std::vector<float> fitness;  /// All fitness, but on CPU
+  gpu::Matrix<Fitness> dFitness;  /// The (sorted) fitness of each chromosome
+  std::vector<Fitness> fitness;  /// All fitness, but on CPU
   gpu::Matrix<unsigned> dFitnessIdx;
   gpu::Matrix<unsigned> dPermutations;  /// Indices of the genes when sorted
   std::vector<unsigned> permutations;  /// All permutations, but on CPU

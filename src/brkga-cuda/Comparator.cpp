@@ -5,8 +5,8 @@
 #include <vector>
 
 namespace box {
-bool ComparatorBase::operator()(const Chromosome<float>& lhs,
-                                const Chromosome<float>& rhs) const {
+bool ComparatorBase::operator()(const Chromosome<Gene>& lhs,
+                                const Chromosome<Gene>& rhs) const {
   unsigned equal = 0;
   const auto minNumberToConsiderEqual =
       (unsigned)ceil(similarity * (float)chromosomeLength);
@@ -19,11 +19,11 @@ bool ComparatorBase::operator()(const Chromosome<float>& lhs,
   return false;
 }
 
-bool KendallTauComparator::operator()(const Chromosome<float>& lhs0,
-                                      const Chromosome<float>& rhs0) const {
+bool KendallTauComparator::operator()(const Chromosome<Gene>& lhs0,
+                                      const Chromosome<Gene>& rhs0) const {
   const auto n = chromosomeLength;
 
-  auto sorted = [n](const Chromosome<float>& chromosome) {
+  auto sorted = [n](const Chromosome<Gene>& chromosome) {
     std::vector<unsigned> permutation(n);
     std::iota(permutation.begin(), permutation.end(), 0);
     std::sort(permutation.begin(), permutation.end(),

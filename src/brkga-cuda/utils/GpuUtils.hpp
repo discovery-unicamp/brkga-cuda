@@ -1,6 +1,7 @@
 #ifndef BOX_UTILS_GPUUTILS_HPP
 #define BOX_UTILS_GPUUTILS_HPP
 
+#include "../BasicTypes.hpp"
 #include "../Logger.hpp"
 #include "../except/CudaError.hpp"
 #include "../except/InvalidArgument.hpp"
@@ -176,17 +177,11 @@ void iota(cudaStream_t stream, unsigned* arr, unsigned n);
  */
 void iotaMod(cudaStream_t stream, unsigned* arr, unsigned n, unsigned k);
 
-/**
- * Set all values of an array to random values in range [0, 1].
- *
- * Although the library says the range is (0, 1], the 0 still appear in the
- * generator since it may return very small numbers.
- *
- * @param generator The generator of random values.
- * @param arr The array to set the values.
- * @param n The length of the array.
- * @param stream The stream to run the generator.
- */
+/// @brief Generate random values in range (0, 1].
+/// @param stream The stream to run on.
+/// @param generator The generator to use.
+/// @param arr The output array were the values will be stored.
+/// @param n The length of the array.
 inline void random(cudaStream_t stream,
                    curandGenerator_t generator,
                    float* arr,
@@ -196,10 +191,23 @@ inline void random(cudaStream_t stream,
   CUDA_CHECK_LAST();
 }
 
+/// @brief Generate random values in range (0, 1].
+/// @param stream The stream to run on.
+/// @param generator The generator to use.
+/// @param arr The output array were the values will be stored.
+/// @param n The length of the array.
+inline void random(cudaStream_t stream,
+                   curandGenerator_t generator,
+                   double* arr,
+                   std::size_t n) {
+  curandSetStream(generator, stream);
+  curandGenerateUniformDouble(generator, arr, n);
+  CUDA_CHECK_LAST();
+}
+
 namespace _detail {
-/**
- * Source: https://stackoverflow.com/a/48671517/10111328
- */
+/// @brief Allocator that doesn't free the memory between allocations.
+/// Inspired by: https://stackoverflow.com/a/48671517/10111328.
 class CachedAllocator {
 public:
   typedef char byte;
@@ -273,7 +281,7 @@ inline void sortByKey(cudaStream_t stream,
  * @throw std::invalid_argument if @p size doesn't fit 31 bit integer.
  */
 void segSort(cudaStream_t stream,
-             float* dKeys,
+             box::Gene* dKeys,
              unsigned* dValues,
              std::size_t size,
              std::size_t step);

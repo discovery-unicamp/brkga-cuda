@@ -77,7 +77,7 @@ template <class Key, class Value>
 void bbSegSort(Key*, Value*, std::size_t, std::size_t);
 
 void box::gpu::segSort(cudaStream_t stream,
-                       float* dKeys,
+                       box::Gene* dKeys,
                        unsigned* dValues,
                        std::size_t segCount,
                        std::size_t segSize) {

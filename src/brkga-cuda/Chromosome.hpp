@@ -1,6 +1,8 @@
 #ifndef BOX_BRKGA_CHROMOSOME_HPP
 #define BOX_BRKGA_CHROMOSOME_HPP 1
 
+#include "BasicTypes.hpp"
+
 #include <cuda_runtime.h>
 
 #include <cassert>
@@ -10,9 +12,9 @@ namespace box {
 template <class T>
 class Chromosome {
 public:
-  static_assert(std::is_same<T, float>::value
+  static_assert(std::is_same<T, Gene>::value
                     || std::is_same<T, unsigned>::value,
-                "Chromosome can only be float or unsigned");
+                "Chromosome can only be `Gene` or `unsigned`");
 
   __host__ __device__ inline Chromosome() : Chromosome(nullptr, 0, 0) {}
 
@@ -79,7 +81,7 @@ private:
   T* guidePopulation;  // Used to speedup the population access on the CPU
 };
 
-template class Chromosome<float>;
+template class Chromosome<Gene>;
 template class Chromosome<unsigned>;
 }  // namespace box
 
