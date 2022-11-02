@@ -3,35 +3,35 @@
 
 #include <cstdint>
 
-#ifdef Byte
-#warning Macro `Byte` is being undefined
-#undef Byte
-#endif  // Byte
+#ifdef byte
+#warning Macro `byte` is being undefined
+#undef byte
+#endif  // byte
 
-#ifdef UInt
-#warning Macro `UInt` is being undefined
-#undef UInt
-#endif  // UInt
+#ifdef uint
+#warning Macro `uint` is being undefined
+#undef uint
+#endif  // uint
 
-#ifdef ULong
-#warning Macro `ULong` is being undefined
-#undef ULong
-#endif  // ULong
+#ifdef ulong
+#warning Macro `ulong` is being undefined
+#undef ulong
+#endif  // ulong
 
-#ifdef Float
-#warning Macro `Float` is being undefined
-#undef Float
-#endif  // Float
+#ifdef float_t
+#warning Macro `float_t` is being undefined
+#undef float_t
+#endif  // float_t
 
 namespace box {
-typedef std::int8_t Byte;
-typedef std::uint32_t UInt;
-typedef std::uint64_t ULong;
-typedef float Float;
+typedef std::int8_t byte;
+typedef std::uint32_t uint;
+typedef std::uint64_t ulong;
+typedef float float_t;
 
-typedef Float Gene;
-typedef UInt GeneIndex;
-typedef Float Fitness;  // FIXME how to handle user type without template?
+typedef float_t Gene;
+typedef ulong GeneIndex;
+typedef float_t Fitness;  // FIXME how to handle user type without template?
 }  // namespace box
 
 #endif  // BOX_BASICTYPES_HPP

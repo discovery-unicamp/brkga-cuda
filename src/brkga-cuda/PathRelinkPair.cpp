@@ -1,5 +1,6 @@
 #include "PathRelinkPair.hpp"
 
+#include "BasicTypes.hpp"
 #include "Chromosome.hpp"
 #include "Logger.hpp"
 #include "except/InvalidArgument.hpp"
@@ -14,10 +15,10 @@ namespace box {
 std::vector<PathRelinkPair> PathRelinkPair::bestElites(
     const BrkgaConfiguration& config,
     Gene* population,  // TODO add support to GPU
-    unsigned k,
+    uint k,
     const ComparatorBase& similar) {
-  InvalidArgument::range(Arg<unsigned>(k, "k"), Arg<unsigned>(1),
-                         Arg<unsigned>(config.numberOfElites(), "#elites"),
+  InvalidArgument::range(Arg<uint>(k, "k"), Arg<uint>(1),
+                         Arg<uint>(config.numberOfElites(), "#elites"),
                          3 /* closed */, __FUNCTION__);
 
   logger::debug("Build Path Relink pairs with the best", k, "elites");
@@ -25,12 +26,12 @@ std::vector<PathRelinkPair> PathRelinkPair::bestElites(
   std::vector<PathRelinkPair> pairs;
   pairs.reserve(config.numberOfPopulations() * k);
 
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     const auto p1 = (p + 1) % config.numberOfPopulations();
     const auto pOff = p * config.populationSize();
     const auto p1Off = p1 * config.populationSize();
-    for (unsigned base = 0; base < k; ++base)
-      for (unsigned guide = 0; guide < config.numberOfElites(); ++guide)
+    for (uint base = 0; base < k; ++base)
+      for (uint guide = 0; guide < config.numberOfElites(); ++guide)
         if (!similar(Chromosome<Gene>(population, config.chromosomeLength(),
                                       pOff + base),
                      Chromosome<Gene>(population, config.chromosomeLength(),
@@ -47,7 +48,7 @@ std::vector<PathRelinkPair> PathRelinkPair::bestElites(
 std::vector<PathRelinkPair> PathRelinkPair::randomElites(
     const BrkgaConfiguration&,
     Gene*,
-    unsigned,
+    uint,
     const ComparatorBase&) {
   // FIXME
   throw NotImplemented(__PRETTY_FUNCTION__);

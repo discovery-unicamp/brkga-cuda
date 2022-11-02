@@ -1,5 +1,6 @@
 #include "Decoder.hpp"
 
+#include "BasicTypes.hpp"
 #include "BrkgaConfiguration.hpp"
 #include "Chromosome.hpp"
 #include "except/InvalidArgument.hpp"
@@ -16,11 +17,11 @@ Fitness Decoder::decode(const Chromosome<Gene>&) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
-Fitness Decoder::decode(const Chromosome<unsigned>&) const {
+Fitness Decoder::decode(const Chromosome<GeneIndex>&) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
-void Decoder::decode(unsigned numberOfChromosomes,
+void Decoder::decode(uint numberOfChromosomes,
                      const Chromosome<Gene>* chromosomes,
                      Fitness* fitness) const {
   try {
@@ -28,7 +29,7 @@ void Decoder::decode(unsigned numberOfChromosomes,
 #pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
     num_threads(config->ompThreads())
 #endif
-    for (unsigned i = 0; i < numberOfChromosomes; ++i) {
+    for (uint i = 0; i < numberOfChromosomes; ++i) {
       fitness[i] = decode(chromosomes[i]);
     }
   } catch (NotImplemented&) {
@@ -36,15 +37,15 @@ void Decoder::decode(unsigned numberOfChromosomes,
   }
 }
 
-void Decoder::decode(unsigned numberOfPermutations,
-                     const Chromosome<unsigned>* permutations,
+void Decoder::decode(uint numberOfPermutations,
+                     const Chromosome<GeneIndex>* permutations,
                      Fitness* fitness) const {
   try {
 #ifdef _OPENMP
 #pragma omp parallel for if (config->ompThreads() > 1) default(shared) \
     num_threads(config->ompThreads())
 #endif
-    for (unsigned i = 0; i < numberOfPermutations; ++i) {
+    for (uint i = 0; i < numberOfPermutations; ++i) {
       fitness[i] = decode(permutations[i]);
     }
   } catch (NotImplemented&) {
@@ -53,15 +54,15 @@ void Decoder::decode(unsigned numberOfPermutations,
 }
 
 void Decoder::decode(cudaStream_t,
-                     unsigned,
+                     uint,
                      const Chromosome<Gene>*,
                      Fitness*) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }
 
 void Decoder::decode(cudaStream_t,
-                     unsigned,
-                     const Chromosome<unsigned>*,
+                     uint,
+                     const Chromosome<GeneIndex>*,
                      Fitness*) const {
   throw NotImplemented(__PRETTY_FUNCTION__);
 }

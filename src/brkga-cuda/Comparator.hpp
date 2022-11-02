@@ -16,11 +16,11 @@ namespace box {
 /// Check if two chromosomes are very similar.
 class ComparatorBase {
 public:
-  inline ComparatorBase(unsigned _chromosomeLength, unsigned _minEqualGenes)
+  inline ComparatorBase(uint _chromosomeLength, uint _minEqualGenes)
       : ComparatorBase(_chromosomeLength,
                        (float)_minEqualGenes / (float)_chromosomeLength) {}
 
-  inline ComparatorBase(unsigned _chromosomeLength, float _similarity)
+  inline ComparatorBase(uint _chromosomeLength, float _similarity)
       : chromosomeLength(_chromosomeLength), similarity(_similarity) {
     InvalidArgument::range(Arg<float>(similarity, "similarity"), Arg<float>(0),
                            Arg<float>(1), 1 /* end closed */, BOX_FUNCTION);
@@ -34,7 +34,7 @@ public:
   virtual bool isEqual(Gene lhs, Gene rhs) const = 0;
 
 protected:
-  unsigned chromosomeLength;
+  uint chromosomeLength;
   float similarity;  /// The minimum % to consider two chromosomes equal
 };
 
@@ -49,15 +49,15 @@ protected:
  */
 class EpsilonComparator : public ComparatorBase {
 public:
-  inline EpsilonComparator(unsigned _chromosomeLength,
-                           unsigned _minEqualGenes,
+  inline EpsilonComparator(uint _chromosomeLength,
+                           uint _minEqualGenes,
                            float _eps = 1e-7f)
       : ComparatorBase(_chromosomeLength, _minEqualGenes), eps(_eps) {
     InvalidArgument::range(Arg<float>(eps, "epsilon"), Arg<float>(0),
                            Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
-  inline EpsilonComparator(unsigned _chromosomeLength,
+  inline EpsilonComparator(uint _chromosomeLength,
                            float _similarity,
                            float _eps = 1e-7f)
       : ComparatorBase(_chromosomeLength, _similarity), eps(_eps) {
@@ -84,8 +84,8 @@ private:
  */
 class ThresholdComparator : public ComparatorBase {
 public:
-  inline ThresholdComparator(unsigned _chromosomeLength,
-                             unsigned _minEqualGenes,
+  inline ThresholdComparator(uint _chromosomeLength,
+                             uint _minEqualGenes,
                              float _threshold)
       : ComparatorBase(_chromosomeLength, _minEqualGenes),
         threshold(_threshold) {
@@ -93,7 +93,7 @@ public:
                            Arg<float>(1), 0 /* open range */, BOX_FUNCTION);
   }
 
-  inline ThresholdComparator(unsigned _chromosomeLength,
+  inline ThresholdComparator(uint _chromosomeLength,
                              float _similarity,
                              float _threshold)
       : ComparatorBase(_chromosomeLength, _similarity), threshold(_threshold) {
@@ -122,7 +122,7 @@ private:
  */
 class KendallTauComparator : public ComparatorBase {
 public:
-  inline KendallTauComparator(unsigned _chromosomeLength, float _similarity)
+  inline KendallTauComparator(uint _chromosomeLength, float _similarity)
       : ComparatorBase(_chromosomeLength, _similarity) {}
 
   bool operator()(const Chromosome<Gene>& lhs,

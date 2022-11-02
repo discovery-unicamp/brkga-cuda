@@ -10,8 +10,8 @@ namespace gpu {
 template <typename F, typename... Args>
 void vectorized(cudaStream_t stream,
                 F kernel,
-                unsigned n,
-                unsigned threadsPerBlock,
+                uint n,
+                uint threadsPerBlock,
                 Args&... args) {
   kernel<<<gpu::blocks(n, threadsPerBlock), threadsPerBlock, 0, stream>>>(
       args...);

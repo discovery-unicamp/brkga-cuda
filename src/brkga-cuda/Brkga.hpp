@@ -78,20 +78,20 @@ public:
 
   /// Get the permutation of the best chromosome found so far.
   /// @throw `std::runtime_error` If the decode type is a non-sorted one.
-  std::vector<unsigned> getBestPermutation();
+  std::vector<GeneIndex> getBestPermutation();
 
-  std::vector<DecodedChromosome> getPopulation(unsigned p);
+  std::vector<DecodedChromosome> getPopulation(uint p);
 
   BrkgaConfiguration config;  /// The parameters of the algorithm
 
 private:
-  std::pair<unsigned, unsigned> getBest();
+  std::pair<uint, uint> getBest();
 
   /// Sync all streams (except the default) with the host
   void syncStreams();
 
   /// Call the decode method to the population @p p
-  void decodePopulation(unsigned p);
+  void decodePopulation(uint p);
 
   /// Sorts the indices of the chromosomes in case of sorted decode
   void sortChromosomesGenes();
@@ -103,13 +103,13 @@ private:
    */
   void updateFitness();
 
-  std::vector<Gene> pathRelink(unsigned base, unsigned guide);
+  std::vector<Gene> pathRelink(uint base, uint guide);
 
   template <class T>
-  Chromosome<T>* wrapCpu(T* pop, unsigned popId, unsigned n);
+  Chromosome<T>* wrapCpu(T* pop, uint popId, uint n);
 
   template <class T>
-  Chromosome<T>* wrapGpu(T* pop, unsigned popId, unsigned n);
+  Chromosome<T>* wrapGpu(T* pop, uint popId, uint n);
 
   gpu::Matrix<Gene> dPopulation;  /// All the chromosomes
   std::vector<Gene> population;  /// All chromosomes, but on CPU
@@ -118,11 +118,11 @@ private:
 
   gpu::Matrix<Fitness> dFitness;  /// The (sorted) fitness of each chromosome
   std::vector<Fitness> fitness;  /// All fitness, but on CPU
-  gpu::Matrix<unsigned> dFitnessIdx;
-  gpu::Matrix<unsigned> dPermutations;  /// Indices of the genes when sorted
-  std::vector<unsigned> permutations;  /// All permutations, but on CPU
+  gpu::Matrix<uint> dFitnessIdx;
+  gpu::Matrix<GeneIndex> dPermutations;  /// Indices of the genes when sorted
+  std::vector<GeneIndex> permutations;  /// All permutations, but on CPU
 
-  gpu::Matrix<unsigned> dParent;  /// The parent in the crossover
+  gpu::Matrix<uint> dParent;  /// The parent in the crossover
   gpu::Matrix<curandState_t> dRandomStates;  /// RNG to select parents
 
   std::vector<cudaStream_t> streams;  /// The streams to process the populations

@@ -13,17 +13,17 @@ template <class T>
 class Chromosome {
 public:
   static_assert(std::is_same<T, Gene>::value
-                    || std::is_same<T, unsigned>::value,
-                "Chromosome can only be `Gene` or `unsigned`");
+                    || std::is_same<T, GeneIndex>::value,
+                "Chromosome can only be `Gene` or `GeneIndex`");
 
   __host__ __device__ inline Chromosome() : Chromosome(nullptr, 0, 0) {}
 
   __host__ __device__ inline Chromosome(T* _population,
-                                        unsigned _columnCount,
-                                        unsigned _chromosomeIndex,
-                                        unsigned _guideIndex = (unsigned)-1,
-                                        unsigned _guideStart = 0,
-                                        unsigned _guideEnd = 0)
+                                        uint _columnCount,
+                                        uint _chromosomeIndex,
+                                        uint _guideIndex = (uint)-1,
+                                        uint _guideStart = 0,
+                                        uint _guideEnd = 0)
       : population(_population),
         columnCount(_columnCount),
         chromosomeIndex(_chromosomeIndex),
@@ -32,7 +32,7 @@ public:
         guideEnd(_guideEnd),
         guidePopulation(nullptr) {
     assert(chromosomeIndex != guideIndex);
-    assert(guideEnd < (1u << (8 * sizeof(unsigned) - 1)));
+    assert(guideEnd < (1u << (8 * sizeof(uint) - 1)));
 
 // TODO define GPU specific code to access the transposed matrix
 #ifndef __CUDA_ARCH__
@@ -49,7 +49,7 @@ public:
     }
   }
 
-  __host__ __device__ inline T operator[](unsigned i) const {
+  __host__ __device__ inline T operator[](uint i) const {
     // ** gl = guideStart and gr = guideEnd **
     // gl <= i && i < gr == i - gl < gr - gl:
     // i - gl will overflow if i < gl and then i - gl < gr - gl will be false
@@ -68,21 +68,21 @@ public:
   static void copy(cudaStream_t stream,
                    T* to,
                    const Chromosome<T>* chromosomes,
-                   const unsigned n,
-                   const unsigned chromosomeLength);
+                   const uint n,
+                   const uint chromosomeLength);
 
 private:
   T* population;
-  unsigned columnCount;
-  unsigned chromosomeIndex;
-  unsigned guideIndex;
-  unsigned guideStart;
-  unsigned guideEnd;
+  uint columnCount;
+  uint chromosomeIndex;
+  uint guideIndex;
+  uint guideStart;
+  uint guideEnd;
   T* guidePopulation;  // Used to speedup the population access on the CPU
 };
 
 template class Chromosome<Gene>;
-template class Chromosome<unsigned>;
+template class Chromosome<GeneIndex>;
 }  // namespace box
 
 #endif  // BOX_BRKGA_CHROMOSOME_HPP

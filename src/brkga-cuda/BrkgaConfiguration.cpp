@@ -1,12 +1,13 @@
 #include "BrkgaConfiguration.hpp"
 
+#include "BasicTypes.hpp"
 #include "Logger.hpp"
 #include "except/InvalidArgument.hpp"
 
 #include <cmath>
 #include <functional>
 
-const unsigned MAX_GPU_THREADS = 1024;
+const uint MAX_GPU_THREADS = 1024;
 
 namespace box {
 BrkgaConfiguration::Builder::Builder() : config(new BrkgaConfiguration) {}
@@ -28,24 +29,24 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::decodeType(
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfPopulations(
-    unsigned n) {
-  InvalidArgument::min(Arg<unsigned>(n, "#populations"), Arg<unsigned>(1),
+    uint n) {
+  InvalidArgument::min(Arg<uint>(n, "#populations"), Arg<uint>(1),
                        BOX_FUNCTION);
   config->_numberOfPopulations = n;
   return *this;
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::populationSize(
-    unsigned n) {
-  InvalidArgument::min(Arg<unsigned>(n, "|population|"), Arg<unsigned>(3),
+    uint n) {
+  InvalidArgument::min(Arg<uint>(n, "|population|"), Arg<uint>(3),
                        BOX_FUNCTION);
   config->_populationSize = n;
   return *this;
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::chromosomeLength(
-    unsigned n) {
-  InvalidArgument::min(Arg<unsigned>(n, "|chromosome|"), Arg<unsigned>(2),
+    uint n) {
+  InvalidArgument::min(Arg<uint>(n, "|chromosome|"), Arg<uint>(2),
                        BOX_FUNCTION);
   config->_chromosomeLength = n;
   return *this;
@@ -54,42 +55,42 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::chromosomeLength(
 std::vector<float> processBias(std::vector<float> bias) {
   InvalidArgument::min(Arg<float>(bias[0], "bias[0]"), Arg<float>(0.1f),
                        BOX_FUNCTION);
-  for (unsigned i = 1; i < bias.size(); ++i) {
+  for (uint i = 1; i < bias.size(); ++i) {
     InvalidArgument::max(
         Arg<float>(bias[i], format(Separator(""), "bias[", i, "]")),
         Arg<float>(bias[i - 1], format(Separator(""), "bias[", i - 1, "]")),
         BOX_FUNCTION);
   }
 
-  for (unsigned i = 1; i < bias.size(); ++i) bias[i] += bias[i - 1];
+  for (uint i = 1; i < bias.size(); ++i) bias[i] += bias[i - 1];
   return bias;
 }
 
-std::vector<float> buildBias(unsigned n, Bias biasType) {
-  std::function<float(unsigned)> generator;
+std::vector<float> buildBias(uint n, Bias biasType) {
+  std::function<float(uint)> generator;
   switch (biasType) {
     case Bias::CONSTANT:
-      generator = [n](unsigned) { return 1 / (float)n; };
+      generator = [n](uint) { return 1 / (float)n; };
       break;
 
     case Bias::LINEAR:
-      generator = [](unsigned i) { return 1 / (float)(i + 1); };
+      generator = [](uint i) { return 1 / (float)(i + 1); };
       break;
 
     case Bias::QUADRATIC:
-      generator = [](unsigned i) { return 1 / powf((float)(i + 1), 2); };
+      generator = [](uint i) { return 1 / powf((float)(i + 1), 2); };
       break;
 
     case Bias::CUBIC:
-      generator = [](unsigned i) { return 1 / powf((float)(i + 1), 3); };
+      generator = [](uint i) { return 1 / powf((float)(i + 1), 3); };
       break;
 
     case Bias::EXPONENTIAL:
-      generator = [](unsigned i) { return expf(-(float)i); };
+      generator = [](uint i) { return expf(-(float)i); };
       break;
 
     case Bias::LOGARITHM:
-      generator = [](unsigned i) { return 1 / logf((float)(i + 2)); };
+      generator = [](uint i) { return 1 / logf((float)(i + 2)); };
       break;
 
     default:
@@ -97,20 +98,18 @@ std::vector<float> buildBias(unsigned n, Bias biasType) {
   }
 
   std::vector<float> bias(n);
-  for (unsigned i = 0; i < n; ++i) bias[i] = generator(i);
+  for (uint i = 0; i < n; ++i) bias[i] = generator(i);
   return bias;
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::parents(
     const std::vector<float>& bias,
-    unsigned numberOfElites) {
-  InvalidArgument::range(Arg<unsigned>((unsigned)bias.size(), "#parents"),
-                         Arg<unsigned>(2),
-                         Arg<unsigned>(config->_populationSize, "|population|"),
+    uint numberOfElites) {
+  InvalidArgument::range(Arg<uint>((uint)bias.size(), "#parents"), Arg<uint>(2),
+                         Arg<uint>(config->_populationSize, "|population|"),
                          3 /* closed */, BOX_FUNCTION);
-  InvalidArgument::range(Arg<unsigned>(numberOfElites, "#elite parents"),
-                         Arg<unsigned>(1),
-                         Arg<unsigned>((unsigned)bias.size(), "#parents"),
+  InvalidArgument::range(Arg<uint>(numberOfElites, "#elite parents"),
+                         Arg<uint>(1), Arg<uint>((uint)bias.size(), "#parents"),
                          2 /* start closed */, BOX_FUNCTION);
 
   config->_bias = processBias(bias);
@@ -119,14 +118,14 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::parents(
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::parents(
-    unsigned n,
+    uint n,
     Bias biasType,
-    unsigned numberOfElites) {
+    uint numberOfElites) {
   return parents(buildBias(n, biasType), numberOfElites);
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfElites(
-    unsigned n) {
+    uint n) {
   if (config->_populationSize == 0)
     throw InvalidArgument(
         "You should define the population size before #elites", BOX_FUNCTION);
@@ -144,7 +143,7 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::elitePercentage(
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::numberOfMutants(
-    unsigned n) {
+    uint n) {
   if (config->_populationSize == 0)
     throw InvalidArgument(
         "You should define the population size before #mutants", BOX_FUNCTION);
@@ -157,34 +156,32 @@ BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::mutantPercentage(
   if (config->_populationSize == 0)
     throw InvalidArgument(
         "You should define the population size before mutant%", BOX_FUNCTION);
-  return numberOfMutants((unsigned)(p * (float)config->_populationSize));
+  return numberOfMutants((uint)(p * (float)config->_populationSize));
 }
 
 BrkgaConfiguration::Builder&
-BrkgaConfiguration::Builder::numberOfElitesToExchange(unsigned k) {
+BrkgaConfiguration::Builder::numberOfElitesToExchange(uint k) {
   config->setNumberOfElitesToExchange(k);
   return *this;
 }
 
 BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::pathRelinkBlockSize(
-    unsigned k) {
+    uint k) {
   config->setPathRelinkBlockSize(k);
   return *this;
 }
 
-BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::seed(unsigned s) {
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::seed(uint s) {
   config->_seed = s;
   return *this;
 }
 
-BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::ompThreads(
-    unsigned k) {
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::ompThreads(uint k) {
   config->setOmpThreads(k);
   return *this;
 }
 
-BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::gpuThreads(
-    unsigned k) {
+BrkgaConfiguration::Builder& BrkgaConfiguration::Builder::gpuThreads(uint k) {
   config->setGpuThreads(k);
   return *this;
 }
@@ -210,78 +207,78 @@ BrkgaConfiguration BrkgaConfiguration::Builder::build() {
 }
 
 void BrkgaConfiguration::setBias(const std::vector<float>& bias,
-                                 unsigned numberOfEliteParents) {
-  InvalidArgument::diff(Arg<unsigned>((unsigned)bias.size(), "bias size"),
-                        Arg<unsigned>((unsigned)_bias.size(), "current size"),
+                                 uint numberOfEliteParents) {
+  InvalidArgument::diff(Arg<uint>((uint)bias.size(), "bias size"),
+                        Arg<uint>((uint)_bias.size(), "current size"),
                         BOX_FUNCTION);
   _bias = processBias(bias);
   _numberOfEliteParents = numberOfEliteParents;
 }
 
-void BrkgaConfiguration::setBias(Bias biasType, unsigned numberOfEliteParents) {
-  setBias(buildBias((unsigned)_bias.size(), biasType), numberOfEliteParents);
+void BrkgaConfiguration::setBias(Bias biasType, uint numberOfEliteParents) {
+  setBias(buildBias((uint)_bias.size(), biasType), numberOfEliteParents);
 }
 
-void BrkgaConfiguration::setNumberOfElites(unsigned n) {
-  InvalidArgument::range(Arg<unsigned>(n, "#elites"), Arg<unsigned>(1),
-                         Arg<unsigned>(_populationSize - _numberOfMutants,
-                                       "|population| - #mutants"),
-                         2 /* start closed */, BOX_FUNCTION);
+void BrkgaConfiguration::setNumberOfElites(uint n) {
+  InvalidArgument::range(
+      Arg<uint>(n, "#elites"), Arg<uint>(1),
+      Arg<uint>(_populationSize - _numberOfMutants, "|population| - #mutants"),
+      2 /* start closed */, BOX_FUNCTION);
   _numberOfElites = n;
 }
 
 void BrkgaConfiguration::setElitePercentage(float p) {
   InvalidArgument::range(Arg<float>(p, "elite%"), Arg<float>(0), Arg<float>(1),
                          0 /* open */, BOX_FUNCTION);
-  setNumberOfElites((unsigned)(p * (float)_populationSize));
+  setNumberOfElites((uint)(p * (float)_populationSize));
 }
 
-void BrkgaConfiguration::setNumberOfMutants(unsigned n) {
-  InvalidArgument::range(Arg<unsigned>(n, "#mutants"), Arg<unsigned>(1),
-                         Arg<unsigned>(_populationSize - _numberOfElites,
-                                       "|population| - #elites"),
-                         2 /* start closed */, BOX_FUNCTION);
+void BrkgaConfiguration::setNumberOfMutants(uint n) {
+  InvalidArgument::range(
+      Arg<uint>(n, "#mutants"), Arg<uint>(1),
+      Arg<uint>(_populationSize - _numberOfElites, "|population| - #elites"),
+      2 /* start closed */, BOX_FUNCTION);
   _numberOfMutants = n;
 }
 
 void BrkgaConfiguration::setMutantPercentage(float p) {
   InvalidArgument::range(Arg<float>(p, "mutant%"), Arg<float>(0), Arg<float>(1),
                          0 /* open */, BOX_FUNCTION);
-  setNumberOfMutants((unsigned)(p * (float)_populationSize));
+  setNumberOfMutants((uint)(p * (float)_populationSize));
 }
 
-void BrkgaConfiguration::setNumberOfElitesToExchange(unsigned k) {
-  InvalidArgument::range(Arg<unsigned>(k, "exchange count"), Arg<unsigned>(0),
-                         Arg<unsigned>(_numberOfElites, "#elites"),
-                         3 /* closed */, BOX_FUNCTION);
-  InvalidArgument::range(Arg<unsigned>(k, "exchange count"), Arg<unsigned>(0),
-                         Arg<unsigned>(_populationSize / _numberOfPopulations,
-                                       "|population| / #populations"),
+void BrkgaConfiguration::setNumberOfElitesToExchange(uint k) {
+  InvalidArgument::range(Arg<uint>(k, "exchange count"), Arg<uint>(0),
+                         Arg<uint>(_numberOfElites, "#elites"), 3 /* closed */,
+                         BOX_FUNCTION);
+  InvalidArgument::range(Arg<uint>(k, "exchange count"), Arg<uint>(0),
+                         Arg<uint>(_populationSize / _numberOfPopulations,
+                                   "|population| / #populations"),
                          3 /* closed */, BOX_FUNCTION);
   _numberOfElitesToExchange = k;
 }
 
-void BrkgaConfiguration::setPathRelinkBlockSize(unsigned k) {
-  InvalidArgument::range(Arg<unsigned>(k, "pr block size"), Arg<unsigned>(1),
-                         Arg<unsigned>(_chromosomeLength, "|chromosome|"),
+void BrkgaConfiguration::setPathRelinkBlockSize(uint k) {
+  InvalidArgument::range(Arg<uint>(k, "pr block size"), Arg<uint>(1),
+                         Arg<uint>(_chromosomeLength, "|chromosome|"),
                          2 /* start closed */, BOX_FUNCTION);
   _pathRelinkBlockSize = k;
 }
 
-void BrkgaConfiguration::setOmpThreads(unsigned k) {
+void BrkgaConfiguration::setOmpThreads(uint k) {
 #ifndef _OPENMP
   if (k > 1)
     throw std::logic_error(format(
         "OpenMP wasn't enabled; cannot set the number of threads to", k));
 #endif  //_OPENMP
-  InvalidArgument::min(Arg<unsigned>(k, "OpenMP threads"), Arg<unsigned>(1),
+  InvalidArgument::min(Arg<uint>(k, "OpenMP threads"), Arg<uint>(1),
                        BOX_FUNCTION);
   _ompThreads = k;
 }
 
-void BrkgaConfiguration::setGpuThreads(unsigned k) {
-  InvalidArgument::range(Arg<unsigned>(k, "gpu threads"), Arg<unsigned>(1),
-                         Arg<unsigned>(MAX_GPU_THREADS, "CUDA limit"),
+void BrkgaConfiguration::setGpuThreads(uint k) {
+  InvalidArgument::range(Arg<uint>(k, "gpu threads"), Arg<uint>(1),
+                         Arg<uint>(MAX_GPU_THREADS, "CUDA limit"),
                          3 /* closed */, BOX_FUNCTION);
   _gpuThreads = k;
 }

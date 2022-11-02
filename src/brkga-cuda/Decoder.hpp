@@ -22,24 +22,24 @@ public:
 
   virtual Fitness decode(const Chromosome<Gene>& chromosome) const;
 
-  virtual Fitness decode(const Chromosome<unsigned>& permutation) const;
+  virtual Fitness decode(const Chromosome<GeneIndex>& permutation) const;
 
-  virtual void decode(unsigned numberOfChromosomes,
+  virtual void decode(uint numberOfChromosomes,
                       const Chromosome<Gene>* chromosomes,
                       Fitness* fitness) const;
 
-  virtual void decode(unsigned numberOfPermutations,
-                      const Chromosome<unsigned>* permutations,
+  virtual void decode(uint numberOfPermutations,
+                      const Chromosome<GeneIndex>* permutations,
                       Fitness* fitness) const;
 
   virtual void decode(cudaStream_t stream,
-                      unsigned numberOfChromosomes,
+                      uint numberOfChromosomes,
                       const Chromosome<Gene>* dChromosomes,
                       Fitness* dFitness) const;
 
   virtual void decode(cudaStream_t stream,
-                      unsigned numberOfPermutations,
-                      const Chromosome<unsigned>* dPermutations,
+                      uint numberOfPermutations,
+                      const Chromosome<GeneIndex>* dPermutations,
                       Fitness* dFitness) const;
 
 protected:

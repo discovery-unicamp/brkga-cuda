@@ -21,10 +21,10 @@
 namespace box {
 template <class T>
 __global__ void copyChromosome(T* dst,
-                               const unsigned index,
+                               const uint index,
                                const T* src,
-                               const unsigned chromosomeLength,
-                               const unsigned* fitnessIdx) {
+                               const uint chromosomeLength,
+                               const uint* fitnessIdx) {
   const auto k = blockIdx.x * blockDim.x + threadIdx.x;
   if (k >= chromosomeLength) return;
 
@@ -33,19 +33,19 @@ __global__ void copyChromosome(T* dst,
 }
 
 __global__ void copyFitness(box::Fitness* fitness,
-                            unsigned index,
+                            uint index,
                             box::Fitness* dFitness,
-                            unsigned* dFitnessIdx) {
+                            uint* dFitnessIdx) {
   const auto sortedIndex = dFitnessIdx[index];
   *fitness = dFitness[sortedIndex];
 }
 
 template <class T>
 __global__ void copyToDevice(T* dst,
-                             const unsigned index,
+                             const uint index,
                              const T* src,
-                             const unsigned chromosomeLength,
-                             const unsigned* fitnessIdx) {
+                             const uint chromosomeLength,
+                             const uint* fitnessIdx) {
   const auto k = blockIdx.x * blockDim.x + threadIdx.x;
   if (k >= chromosomeLength) return;
 
@@ -54,13 +54,13 @@ __global__ void copyToDevice(T* dst,
 }
 
 template <class T>
-__host__ __device__ void setupBlock(unsigned j,
+__host__ __device__ void setupBlock(uint j,
                                     Chromosome<T>* wrapper,
                                     T* chromosomes,
-                                    const unsigned* blocks,
-                                    unsigned blockSize,
-                                    unsigned chromosomeLength,
-                                    unsigned id) {
+                                    const uint* blocks,
+                                    uint blockSize,
+                                    uint chromosomeLength,
+                                    uint id) {
   const auto b = blocks[j];
   const auto l = b * blockSize;
   const auto r = l + blockSize;  // Overflow will never happen here
@@ -72,28 +72,28 @@ __host__ __device__ void setupBlock(unsigned j,
 template <class T>
 __global__ void buildBlocksKernel(Chromosome<T>* wrapper,
                                   T* chromosomes,
-                                  const unsigned* blocks,
-                                  unsigned blockSize,
-                                  unsigned chromosomeLength,
-                                  unsigned id) {
+                                  const uint* blocks,
+                                  uint blockSize,
+                                  uint chromosomeLength,
+                                  uint id) {
   const auto j = blockIdx.x * blockDim.x + threadIdx.x;
   setupBlock(j, wrapper, chromosomes, blocks, blockSize, chromosomeLength, id);
 }
 
 template <class T>
-void buildBlocks(unsigned n,
+void buildBlocks(uint n,
                  Chromosome<T>* wrapper,
                  T* chromosomes,
-                 const unsigned* blocks,
-                 unsigned blockSize,
-                 unsigned chromosomeLength,
-                 unsigned id) {
-  for (unsigned j = 0; j < n; ++j)
+                 const uint* blocks,
+                 uint blockSize,
+                 uint chromosomeLength,
+                 uint id) {
+  for (uint j = 0; j < n; ++j)
     setupBlock(j, wrapper, chromosomes, blocks, blockSize, chromosomeLength,
                id);
 }
 
-std::vector<Gene> Brkga::pathRelink(const unsigned base, const unsigned guide) {
+std::vector<Gene> Brkga::pathRelink(const uint base, const uint guide) {
   logger::debug("Running Path Relink with", base, "and", guide);
 
   auto dChromosomes = gpu::alloc<Gene>(nullptr, 2 * config.chromosomeLength());
@@ -128,20 +128,20 @@ std::vector<Gene> Brkga::pathRelink(const unsigned base, const unsigned guide) {
       (config.chromosomeLength() + config.pathRelinkBlockSize() - 1)
       / config.pathRelinkBlockSize();
   logger::debug("Number of blocks to process:", numberOfSegments);
-  std::vector<unsigned> blocks(numberOfSegments);
+  std::vector<uint> blocks(numberOfSegments);
   std::iota(blocks.begin(), blocks.end(), 0);
 
   fitness.resize(numberOfSegments);
 
-  unsigned* dBlocks = nullptr;
+  uint* dBlocks = nullptr;
   box::Fitness* dFitnessPtr = nullptr;
   if (!config.decodeType().onCpu()) {
-    dBlocks = gpu::alloc<unsigned>(nullptr, numberOfSegments);
+    dBlocks = gpu::alloc<uint>(nullptr, numberOfSegments);
     dFitnessPtr = gpu::alloc<box::Fitness>(nullptr, numberOfSegments);
   }
 
-  unsigned id = 0;
-  for (unsigned i = numberOfSegments; i > 0; --i) {
+  uint id = 0;
+  for (uint i = numberOfSegments; i > 0; --i) {
     if (config.decodeType().onCpu()) {
       buildBlocks(i, populationWrapper, chromosomes.data(), blocks.data(),
                   config.pathRelinkBlockSize(), config.chromosomeLength(), id);
@@ -150,7 +150,7 @@ std::vector<Gene> Brkga::pathRelink(const unsigned base, const unsigned guide) {
       gpu::copy2d(streams[0], dChromosomes, chromosomes.data(),
                   chromosomes.size());
       gpu::copy2d(streams[0], dBlocks, blocks.data(), i);
-      buildBlocksKernel<<<1, i, 0, streams[0]>>>(
+      buildBlocksKernel<<<1, (unsigned)i, 0, streams[0]>>>(
           populationWrapper, dChromosomes, dBlocks,
           config.pathRelinkBlockSize(), config.chromosomeLength(), id);
       config.decoder()->decode(streams[0], i, populationWrapper, dFitnessPtr);
@@ -158,8 +158,8 @@ std::vector<Gene> Brkga::pathRelink(const unsigned base, const unsigned guide) {
       gpu::sync(streams[0]);
     }
 
-    unsigned bestIdx = 0;
-    for (unsigned j = 1; j < i; ++j) {
+    uint bestIdx = 0;
+    for (uint j = 1; j < i; ++j) {
       if (fitness[j] < fitness[bestIdx]) bestIdx = j;
     }
     logger::debug("PR moved to:", fitness[bestIdx],
@@ -205,24 +205,24 @@ void Brkga::runPathRelink(const std::vector<PathRelinkPair>& pairList) {
 
   for (const auto& pair : pairList) {
     InvalidArgument::max(
-        Arg<unsigned>(pair.basePopulationId, "base population"),
-        Arg<unsigned>(config.numberOfPopulations() - 1, "#populations - 1"),
+        Arg<uint>(pair.basePopulationId, "base population"),
+        Arg<uint>(config.numberOfPopulations() - 1, "#populations - 1"),
         __FUNCTION__);
     InvalidArgument::max(
-        Arg<unsigned>(pair.guidePopulationId, "guide population"),
-        Arg<unsigned>(config.numberOfPopulations() - 1, "#populations - 1"),
+        Arg<uint>(pair.guidePopulationId, "guide population"),
+        Arg<uint>(config.numberOfPopulations() - 1, "#populations - 1"),
         __FUNCTION__);
     InvalidArgument::max(
-        Arg<unsigned>(pair.baseChromosomeId, "base chromosome"),
-        Arg<unsigned>(config.populationSize() - 1, "|population| - 1"),
+        Arg<uint>(pair.baseChromosomeId, "base chromosome"),
+        Arg<uint>(config.populationSize() - 1, "|population| - 1"),
         __FUNCTION__);
     InvalidArgument::max(
-        Arg<unsigned>(pair.guideChromosomeId, "guide chromosome"),
-        Arg<unsigned>(config.populationSize() - 1, "|population| - 1"),
+        Arg<uint>(pair.guideChromosomeId, "guide chromosome"),
+        Arg<uint>(config.populationSize() - 1, "|population| - 1"),
         __FUNCTION__);
   }
 
-  std::vector<unsigned> insertedCount(config.numberOfPopulations(), 0);
+  std::vector<uint> insertedCount(config.numberOfPopulations(), 0);
   auto dChromosomes = gpu::alloc<Gene>(nullptr, config.chromosomeLength());
 
   for (const auto& pair : pairList) {

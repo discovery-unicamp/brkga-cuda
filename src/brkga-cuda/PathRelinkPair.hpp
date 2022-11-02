@@ -29,7 +29,7 @@ public:
   static std::vector<PathRelinkPair> bestElites(
       const BrkgaConfiguration& config,
       Gene* population,
-      unsigned k,
+      uint k,
       const ComparatorBase& similar);
 
   /**
@@ -43,24 +43,24 @@ public:
   static std::vector<PathRelinkPair> randomElites(
       const BrkgaConfiguration& config,
       Gene* population,
-      unsigned k,
+      uint k,
       const ComparatorBase& similar);
 
   PathRelinkPair() : PathRelinkPair(-1u, -1u, -1u, -1u) {}
 
-  PathRelinkPair(unsigned _basePopulationId,
-                 unsigned _baseChromosomeId,
-                 unsigned _guidePopulationId,
-                 unsigned _guideChromosomeId)
+  PathRelinkPair(uint _basePopulationId,
+                 uint _baseChromosomeId,
+                 uint _guidePopulationId,
+                 uint _guideChromosomeId)
       : basePopulationId(_basePopulationId),
         baseChromosomeId(_baseChromosomeId),
         guidePopulationId(_guidePopulationId),
         guideChromosomeId(_guideChromosomeId) {}
 
-  unsigned basePopulationId;
-  unsigned baseChromosomeId;
-  unsigned guidePopulationId;
-  unsigned guideChromosomeId;
+  uint basePopulationId;
+  uint baseChromosomeId;
+  uint guidePopulationId;
+  uint guideChromosomeId;
 };
 }  // namespace box
 

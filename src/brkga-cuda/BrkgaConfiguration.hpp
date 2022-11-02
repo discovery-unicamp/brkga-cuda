@@ -1,6 +1,7 @@
 #ifndef BRKGACUDA_BRKGACONFIGURATION_HPP
 #define BRKGACUDA_BRKGACONFIGURATION_HPP
 
+#include "BasicTypes.hpp"
 #include "Bias.hpp"
 #include "DecodeType.hpp"
 
@@ -21,21 +22,20 @@ public:
 
     Builder& decoder(Decoder* d);
     Builder& decodeType(DecodeType dt);
-    Builder& ompThreads(unsigned k);
-    Builder& gpuThreads(unsigned k);
-    Builder& numberOfPopulations(unsigned n);
-    Builder& populationSize(unsigned n);
-    Builder& chromosomeLength(unsigned n);
-    Builder& numberOfElites(unsigned n);
+    Builder& ompThreads(uint k);
+    Builder& gpuThreads(uint k);
+    Builder& numberOfPopulations(uint n);
+    Builder& populationSize(uint n);
+    Builder& chromosomeLength(uint n);
+    Builder& numberOfElites(uint n);
     Builder& elitePercentage(float p);
-    Builder& numberOfMutants(unsigned n);
+    Builder& numberOfMutants(uint n);
     Builder& mutantPercentage(float p);
-    Builder& parents(const std::vector<float>& bias,
-                     unsigned numberOfEliteParents);
-    Builder& parents(unsigned n, Bias biasType, unsigned numberOfEliteParents);
-    Builder& numberOfElitesToExchange(unsigned k);
-    Builder& pathRelinkBlockSize(unsigned k);
-    Builder& seed(unsigned s);
+    Builder& parents(const std::vector<float>& bias, uint numberOfEliteParents);
+    Builder& parents(uint n, Bias biasType, uint numberOfEliteParents);
+    Builder& numberOfElitesToExchange(uint k);
+    Builder& pathRelinkBlockSize(uint k);
+    Builder& seed(uint s);
 
     BrkgaConfiguration build();
 
@@ -48,32 +48,32 @@ public:
   inline Decoder* decoder() { return _decoder; }
   inline const Decoder* decoder() const { return _decoder; }
   inline DecodeType decodeType() const { return _decodeType; }
-  inline unsigned numberOfPopulations() const { return _numberOfPopulations; }
-  inline unsigned populationSize() const { return _populationSize; }
-  inline unsigned chromosomeLength() const { return _chromosomeLength; }
-  inline unsigned numberOfParents() const { return (unsigned)_bias.size(); }
-  inline unsigned numberOfEliteParents() const { return _numberOfEliteParents; }
+  inline uint numberOfPopulations() const { return _numberOfPopulations; }
+  inline uint populationSize() const { return _populationSize; }
+  inline uint chromosomeLength() const { return _chromosomeLength; }
+  inline uint numberOfParents() const { return (uint)_bias.size(); }
+  inline uint numberOfEliteParents() const { return _numberOfEliteParents; }
   inline const std::vector<float>& bias() const { return _bias; }
-  inline unsigned numberOfElites() const { return _numberOfElites; }
-  inline unsigned numberOfMutants() const { return _numberOfMutants; }
-  inline unsigned numberOfElitesToExchange() const {
+  inline uint numberOfElites() const { return _numberOfElites; }
+  inline uint numberOfMutants() const { return _numberOfMutants; }
+  inline uint numberOfElitesToExchange() const {
     return _numberOfElitesToExchange;
   }
-  inline unsigned pathRelinkBlockSize() const { return _pathRelinkBlockSize; }
-  inline unsigned seed() const { return _seed; }
-  inline unsigned ompThreads() const { return _ompThreads; }
-  inline unsigned gpuThreads() const { return _gpuThreads; }
+  inline uint pathRelinkBlockSize() const { return _pathRelinkBlockSize; }
+  inline uint seed() const { return _seed; }
+  inline uint ompThreads() const { return _ompThreads; }
+  inline unsigned gpuThreads() const { return (unsigned)_gpuThreads; }
 
-  void setBias(const std::vector<float>& bias, unsigned numberOfEliteParents);
-  void setBias(Bias biasType, unsigned numberOfEliteParents);
-  void setNumberOfElites(unsigned n);
+  void setBias(const std::vector<float>& bias, uint numberOfEliteParents);
+  void setBias(Bias biasType, uint numberOfEliteParents);
+  void setNumberOfElites(uint n);
   void setElitePercentage(float p);
-  void setNumberOfMutants(unsigned n);
+  void setNumberOfMutants(uint n);
   void setMutantPercentage(float p);
-  void setNumberOfElitesToExchange(unsigned k);
-  void setPathRelinkBlockSize(unsigned k);
-  void setOmpThreads(unsigned k);
-  void setGpuThreads(unsigned k);
+  void setNumberOfElitesToExchange(uint k);
+  void setPathRelinkBlockSize(uint k);
+  void setOmpThreads(uint k);
+  void setGpuThreads(uint k);
 
 private:
   friend Builder;
@@ -96,18 +96,18 @@ private:
 
   Decoder* _decoder;  /// The decoder implementation
   DecodeType _decodeType;  /// @see DecodeType.hpp
-  unsigned _numberOfPopulations;  /// Number of independent populations
-  unsigned _populationSize;  /// Size/#chromosomes of each population
-  unsigned _chromosomeLength;  /// The length of the chromosomes
-  unsigned _numberOfEliteParents;  /// Number of elite parents for mating
+  uint _numberOfPopulations;  /// Number of independent populations
+  uint _populationSize;  /// Size/#chromosomes of each population
+  uint _chromosomeLength;  /// The length of the chromosomes
+  uint _numberOfEliteParents;  /// Number of elite parents for mating
   std::vector<float> _bias;  /// Probability to select the i-th parent on mating
-  unsigned _numberOfElites;  /// #elites in the population
-  unsigned _numberOfMutants;  /// #mutants in the population
-  unsigned _numberOfElitesToExchange;  /// #elites for @ref exchangeElites
-  unsigned _pathRelinkBlockSize;  /// Block size for @ref pathRelink
-  unsigned _seed;  /// The seed to use
-  unsigned _ompThreads;  /// #threads to use on OpenMP
-  unsigned _gpuThreads;  /// #threads per block for CUDA kernels
+  uint _numberOfElites;  /// #elites in the population
+  uint _numberOfMutants;  /// #mutants in the population
+  uint _numberOfElitesToExchange;  /// #elites for @ref exchangeElites
+  uint _pathRelinkBlockSize;  /// Block size for @ref pathRelink
+  uint _seed;  /// The seed to use
+  uint _ompThreads;  /// #threads to use on OpenMP
+  uint _gpuThreads;  /// #threads per block for CUDA kernels
 };
 }  // namespace box
 

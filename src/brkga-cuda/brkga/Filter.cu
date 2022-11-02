@@ -10,11 +10,11 @@
 
 namespace box {
 __global__ void copySorted(Gene* sortedPopulation,
-                           const unsigned* fitnessIdx,
+                           const uint* fitnessIdx,
                            const Gene* population,
-                           unsigned numberOfPopulations,
-                           unsigned populationSize,
-                           unsigned chromosomeLength) {
+                           uint numberOfPopulations,
+                           uint populationSize,
+                           uint chromosomeLength) {
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= numberOfPopulations * populationSize) return;
 
@@ -25,7 +25,7 @@ __global__ void copySorted(Gene* sortedPopulation,
                            * chromosomeLength;
   auto* to = sortedPopulation + tid * chromosomeLength;
 
-  for (unsigned i = 0; i < chromosomeLength; ++i) to[i] = from[i];
+  for (uint i = 0; i < chromosomeLength; ++i) to[i] = from[i];
 }
 
 void Brkga::printStatus() {
@@ -44,7 +44,7 @@ void Brkga::printStatus() {
   assert(config.decodeType().chromosome());
   population.resize(config.numberOfPopulations() * config.populationSize()
                     * config.chromosomeLength());
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     gpu::copy2h(streams[p],
                 population.data()
                     + p * config.populationSize() * config.chromosomeLength(),
@@ -54,9 +54,9 @@ void Brkga::printStatus() {
   syncStreams();
 
   logger::debug("Print info");
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
-    unsigned k = 0;
-    for (unsigned i = 0; i < config.numberOfElites(); i += k) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
+    uint k = 0;
+    for (uint i = 0; i < config.numberOfElites(); i += k) {
       for (k = 1; i + k < config.populationSize(); ++k) {
         const auto* ci = population.data()
                          + (p * config.populationSize() + i + k - 1)
@@ -67,7 +67,7 @@ void Brkga::printStatus() {
 
         const float eps = 1e-6f;
         bool eq = true;
-        for (unsigned j = 0; j < config.chromosomeLength(); ++j) {
+        for (uint j = 0; j < config.chromosomeLength(); ++j) {
           if (std::abs(ci[j] - ck[j]) >= eps) {
             eq = false;
             break;
@@ -90,7 +90,7 @@ void Brkga::removeSimilarElites(const ComparatorBase& comparator) {
   // FIXME this block was duplicated
   population.resize(config.numberOfPopulations() * config.populationSize()
                     * config.chromosomeLength());
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     gpu::copy2h(streams[p],
                 population.data()
                     + p * config.populationSize() * config.chromosomeLength(),
@@ -100,39 +100,39 @@ void Brkga::removeSimilarElites(const ComparatorBase& comparator) {
 
   // TODO should i update the fitness too?
   // fitness.resize(config.numberOfPopulations() * config.populationSize());
-  // for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  // for (uint p = 0; p < config.numberOfPopulations(); ++p) {
   //   gpu::copy2h(streams[p], fitness.data() + p * config.populationSize(),
   //                dFitness.row(p), config.populationSize());
   // }
 
-  std::vector<unsigned> fitnessIdx(
+  std::vector<uint> fitnessIdx(
       config.numberOfPopulations() * config.populationSize(), -1u);
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     gpu::copy2h(streams[p], fitnessIdx.data() + p * config.populationSize(),
                 dFitnessIdx.row(p), config.populationSize());
   }
 
   syncStreams();
 
-  unsigned duplicatedCount = 0;
+  uint duplicatedCount = 0;
   // TODO replace by the worst fitness * factor
   // const float badFitness = 1e18;
 
   std::vector<Chromosome<Gene>> elites(config.numberOfElites());
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     logger::debug("Pruning population", p);
     const auto offset = p * config.populationSize();
 
-    for (unsigned i = 0; i < config.numberOfElites(); ++i) {
+    for (uint i = 0; i < config.numberOfElites(); ++i) {
       elites[i] = Chromosome<Gene>(
           population.data() + offset * config.chromosomeLength(),
           config.chromosomeLength(), fitnessIdx[offset + i]);
     }
 
-    unsigned k = 0;
-    std::vector<unsigned> removedIdx;
+    uint k = 0;
+    std::vector<uint> removedIdx;
     std::vector<bool> remove(config.numberOfElites(), false);
-    for (unsigned i = 0; i < config.numberOfElites(); ++i) {
+    for (uint i = 0; i < config.numberOfElites(); ++i) {
       if (remove[i]) {
         // fitness[fitnessIdx[offset + i]] = badFitness;
         removedIdx.push_back(fitnessIdx[offset + i]);
@@ -141,24 +141,23 @@ void Brkga::removeSimilarElites(const ComparatorBase& comparator) {
 
       fitnessIdx[offset + k] = fitnessIdx[offset + i];
       ++k;
-      for (unsigned j = i + 1; j < config.numberOfElites(); ++j)
+      for (uint j = i + 1; j < config.numberOfElites(); ++j)
         remove[j] = remove[j] || comparator(elites[i], elites[j]);
     }
     if (removedIdx.empty()) continue;
-    duplicatedCount += (unsigned)removedIdx.size();
+    duplicatedCount += (uint)removedIdx.size();
 
     // TODO is this enough?
-    for (unsigned i = config.numberOfElites(); i < config.populationSize();
-         ++i) {
+    for (uint i = config.numberOfElites(); i < config.populationSize(); ++i) {
       fitnessIdx[offset + k] = fitnessIdx[offset + i];
       ++k;
     }
-    for (unsigned idx : removedIdx) {
+    for (uint idx : removedIdx) {
       fitnessIdx[offset + k] = idx;
       ++k;
     }
     assert(k == config.populationSize());
-    assert((unsigned)std::set<unsigned>(
+    assert((uint)std::set<uint>(
                fitnessIdx.begin() + offset,
                fitnessIdx.begin() + offset + config.populationSize())
                .size()
@@ -166,7 +165,7 @@ void Brkga::removeSimilarElites(const ComparatorBase& comparator) {
   }
 
   logger::debug("Copying data to device");
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     gpu::copy2d(streams[p], dFitnessIdx.row(p),
                 fitnessIdx.data() + p * config.populationSize(),
                 config.populationSize());

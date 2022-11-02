@@ -21,9 +21,9 @@
 namespace box {
 /// Initialize @p n @p states with given @p seed as suggested in:
 /// https://docs.nvidia.com/cuda/curand/device-api-overview.html#device-api-overview
-__global__ void initializeCurandStates(unsigned n,
+__global__ void initializeCurandStates(uint n,
                                        curandState_t* states,
-                                       const unsigned seed) {
+                                       const uint seed) {
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= n) return;
   curand_init(seed, tid, 0, &states[tid]);
@@ -52,7 +52,7 @@ Brkga::Brkga(
         "of populations in the configuration",
         format(Separator(""), "(", config.numberOfPopulations(), ")"));
   }
-  for (unsigned p = 0; p < initialPopulation.size(); ++p) {
+  for (uint p = 0; p < initialPopulation.size(); ++p) {
     if (initialPopulation[p].size() > config.populationSize()) {
       logger::warning("Ignoring",
                       initialPopulation[p].size() - config.populationSize(),
@@ -61,20 +61,18 @@ Brkga::Brkga(
                       "the configuration",
                       format(Separator(""), "(", config.populationSize(), ")"));
     }
-    for (unsigned k = 0; k < initialPopulation[p].size(); ++k) {
+    for (uint k = 0; k < initialPopulation[p].size(); ++k) {
       const auto& chromosome = initialPopulation[p][k];
       InvalidArgument::diff(
-          Arg<unsigned>(
-              (unsigned)chromosome.size(),
-              format("length of the chromosome", k, "in the population", p)),
-          Arg<unsigned>(config.chromosomeLength(), "|chromosome|"),
-          BOX_FUNCTION);
+          Arg<uint>((uint)chromosome.size(), format("length of the chromosome",
+                                                    k, "in the population", p)),
+          Arg<uint>(config.chromosomeLength(), "|chromosome|"), BOX_FUNCTION);
     }
   }
 
   config.decoder()->setConfiguration(&config);
 
-  static_assert(sizeof(Chromosome<Gene>) == sizeof(Chromosome<unsigned>));
+  static_assert(sizeof(Chromosome<Gene>) == sizeof(Chromosome<GeneIndex>));
   const auto totalChromosomes =
       config.numberOfPopulations() * config.populationSize();
   populationWrapper =
@@ -84,14 +82,14 @@ Brkga::Brkga(
 
   // One stream for each population
   streams.resize(config.numberOfPopulations());
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+  for (uint p = 0; p < config.numberOfPopulations(); ++p)
     streams[p] = gpu::allocStream();
 
   logger::debug("Building random generator with seed", config.seed());
   std::mt19937 rng(config.seed());
   std::uniform_int_distribution<std::mt19937::result_type> uid;
   generators.resize(config.numberOfPopulations());
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+  for (uint p = 0; p < config.numberOfPopulations(); ++p)
     generators[p] = gpu::allocRandomGenerator(uid(rng));
 
   // FIXME generate according to this log
@@ -103,15 +101,15 @@ Brkga::Brkga(
 
   if (initialPopulation.empty()) {
     logger::debug("Building the initial populations");
-    for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+    for (uint p = 0; p < config.numberOfPopulations(); ++p)
       gpu::random(streams[p], generators[p], dPopulation.row(p),
                   config.populationSize() * config.chromosomeLength());
   } else {
     logger::debug("Using the provided initial populations");
     assert(initialPopulation.size() == config.numberOfPopulations());  // FIXME
-    for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+    for (uint p = 0; p < config.numberOfPopulations(); ++p) {
       std::vector<Gene> chromosomes;
-      for (unsigned i = 0; i < initialPopulation[p].size(); ++i) {
+      for (uint i = 0; i < initialPopulation[p].size(); ++i) {
         const auto& ch = initialPopulation[p][i];
         assert(ch.size() == config.chromosomeLength());
         chromosomes.insert(chromosomes.end(), ch.begin(), ch.end());
@@ -130,10 +128,9 @@ Brkga::Brkga(
 }
 
 Brkga::~Brkga() {
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+  for (uint p = 0; p < config.numberOfPopulations(); ++p)
     gpu::free(generators[p]);
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
-    gpu::free(streams[p]);
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) gpu::free(streams[p]);
 
   if (config.decodeType().onCpu()) {
     delete[] populationWrapper;
@@ -149,18 +146,18 @@ Brkga::~Brkga() {
 /// @param b The highest possible value, exclusive
 /// @param state The RNG state
 /// @warning Undefined behaviour if k > b - a -- assert fails if enabled
-__device__ void rangeSample(unsigned* sample,
-                            unsigned k,
-                            unsigned a,
-                            unsigned b,
+__device__ void rangeSample(uint* sample,
+                            uint k,
+                            uint a,
+                            uint b,
                             curandState_t* state) {
   assert(k <= b - a);
   b -= a;
-  for (unsigned i = 0; i < k; ++i) {
+  for (uint i = 0; i < k; ++i) {
     const auto r = curand_uniform(state);
-    auto x = (unsigned)ceilf(r * (b - i)) - 1 + a;
+    auto x = (uint)ceilf(r * (b - i)) - 1 + a;
     assert(x >= a);
-    unsigned j;
+    uint j;
     for (j = 0; j < i && x >= sample[j]; ++j) ++x;
     assert(x < b);
     for (j = i; j != 0 && x < sample[j - 1]; --j) sample[j] = sample[j - 1];
@@ -168,12 +165,12 @@ __device__ void rangeSample(unsigned* sample,
   }
 }
 
-__global__ void selectParents(unsigned* dParent,
-                              const unsigned n,
-                              const unsigned numberOfParents,
-                              const unsigned numberOfEliteParents,
-                              const unsigned populationSize,
-                              const unsigned numberOfElites,
+__global__ void selectParents(uint* dParent,
+                              const uint n,
+                              const uint numberOfParents,
+                              const uint numberOfEliteParents,
+                              const uint populationSize,
+                              const uint numberOfElites,
                               curandState_t* state) {
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= n) return;
@@ -186,8 +183,7 @@ __global__ void selectParents(unsigned* dParent,
 
 #ifndef NDEBUG
   const auto* start = dParent + tid * numberOfParents;
-  for (unsigned i = 1; i < numberOfParents; ++i)
-    assert(start[i] > start[i - 1]);
+  for (uint i = 1; i < numberOfParents; ++i) assert(start[i] > start[i - 1]);
   assert(start[numberOfEliteParents - 1] < numberOfElites);
   assert(start[numberOfParents - 1] < populationSize);
 #endif  // NDEBUG
@@ -195,9 +191,9 @@ __global__ void selectParents(unsigned* dParent,
 
 __global__ void evolveCopyElite(Gene* population,
                                 const Gene* previousPopulation,
-                                const unsigned* dFitnessIdx,
-                                const unsigned numberOfElites,
-                                const unsigned chromosomeLength) {
+                                const uint* dFitnessIdx,
+                                const uint numberOfElites,
+                                const uint chromosomeLength) {
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= numberOfElites * chromosomeLength) return;
 
@@ -213,18 +209,18 @@ __global__ void evolveCopyElite(Gene* population,
 // TODO test if it is better to process many genes in the same thread
 __global__ void evolveMate(Gene* population,
                            const Gene* previousPopulation,
-                           const unsigned* dFitnessIdx,
-                           const unsigned* dParent,
-                           const unsigned numberOfParents,
+                           const uint* dFitnessIdx,
+                           const uint* dParent,
+                           const uint numberOfParents,
                            const float* dBias,
-                           const unsigned populationSize,
-                           const unsigned numberOfElites,
-                           const unsigned numberOfMutants,
-                           const unsigned chromosomeLength) {
+                           const uint populationSize,
+                           const uint numberOfElites,
+                           const uint numberOfMutants,
+                           const uint chromosomeLength) {
   extern __shared__ char sharedMemory[];
 
   float* bias = (float*)sharedMemory;
-  for (unsigned i = threadIdx.x; i < numberOfParents; i += blockDim.x)
+  for (uint i = threadIdx.x; i < numberOfParents; i += blockDim.x)
     bias[i] = dBias[i];
 
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -242,7 +238,7 @@ __global__ void evolveMate(Gene* population,
                     * bias[numberOfParents - 1];
   assert(toss > 0);  // curand doesn't return 0.0
 
-  unsigned parentIdx = 0;
+  uint parentIdx = 0;
   while (toss > bias[parentIdx]) {
     assert(parentIdx < numberOfParents);
     ++parentIdx;
@@ -261,7 +257,7 @@ __global__ void evolveMate(Gene* population,
 void Brkga::evolve() {
   logger::debug("Preparing to perform evolution");
   // Used as toss in the roulette.
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     gpu::random(streams[p], generators[p], dPopulationTemp.row(p),
                 config.populationSize() * config.chromosomeLength());
   }
@@ -269,7 +265,7 @@ void Brkga::evolve() {
   // Select parents for crossover.
   // TODO generate only for the ones that will be updated, i.e., ignore elites
   //   and mutants.
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     selectParents<<<gpu::blocks(config.populationSize(), config.gpuThreads()),
                     config.gpuThreads(), 0, streams[p]>>>(
         dParent.row(p), config.populationSize(), config.numberOfParents(),
@@ -279,7 +275,7 @@ void Brkga::evolve() {
   CUDA_CHECK_LAST();
 
   logger::debug("Copying the elites to the next generation");
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     evolveCopyElite<<<gpu::blocks(
                           config.numberOfElites() * config.chromosomeLength(),
                           config.gpuThreads()),
@@ -294,7 +290,7 @@ void Brkga::evolve() {
   auto* dBias = gpu::alloc<float>(nullptr, config.numberOfParents());
   gpu::copy2d(nullptr, dBias, config.bias().data(), config.numberOfParents());
 
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     const auto blocks =
         gpu::blocks((config.populationSize() - config.numberOfElites()
                      - config.numberOfMutants())
@@ -329,7 +325,7 @@ void Brkga::updateFitness() {
     if (config.decodeType().chromosome()) {
       population.resize(config.numberOfPopulations() * config.populationSize()
                         * config.chromosomeLength());
-      for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+      for (uint p = 0; p < config.numberOfPopulations(); ++p) {
         gpu::copy2h(
             streams[p],
             population.data()
@@ -340,7 +336,7 @@ void Brkga::updateFitness() {
     } else {
       permutations.resize(config.numberOfPopulations() * config.populationSize()
                           * config.chromosomeLength());
-      for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+      for (uint p = 0; p < config.numberOfPopulations(); ++p) {
         gpu::copy2h(
             streams[p],
             permutations.data()
@@ -364,7 +360,7 @@ void Brkga::updateFitness() {
   const auto n =
       (config.decodeType().allAtOnce() ? config.numberOfPopulations() : 1)
       * config.populationSize();
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p) {
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) {
     if (config.decodeType().onCpu()) {
       gpu::sync(streams[p]);
       if (config.decodeType().chromosome()) {
@@ -397,7 +393,7 @@ void Brkga::updateFitness() {
     // Cannot sort all chromosomes since they come from different populations
     if (config.decodeType().allAtOnce()) {
       gpu::sync(streams[0]);  // To avoid sort starting before decoder
-      for (unsigned q = 0; q < config.numberOfPopulations(); ++q) {
+      for (uint q = 0; q < config.numberOfPopulations(); ++q) {
         gpu::iota(streams[q], dFitnessIdx.row(q), config.populationSize());
         gpu::sortByKey(streams[q], dFitness.row(q), dFitnessIdx.row(q),
                        config.populationSize());
@@ -414,12 +410,12 @@ void Brkga::updateFitness() {
 }
 
 template <class T>
-auto Brkga::wrapCpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
+auto Brkga::wrapCpu(T* pop, uint popId, uint n) -> Chromosome<T>* {
   logger::debug("Wrapping population", popId);
   pop += popId * n * config.chromosomeLength();
   auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n;
 
-  for (unsigned k = 0; k < n; ++k) {
+  for (uint k = 0; k < n; ++k) {
     wrap[k] = Chromosome<T>(pop, config.chromosomeLength(), k);
   }
   return wrap;
@@ -428,15 +424,15 @@ auto Brkga::wrapCpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
 template <class T>
 __global__ void initWrapper(Chromosome<T>* dWrapper,
                             T* dPopulation,
-                            unsigned columnCount,
-                            unsigned n) {
+                            uint columnCount,
+                            uint n) {
   const auto k = blockIdx.x * blockDim.x + threadIdx.x;
   if (k >= n) return;
   dWrapper[k] = Chromosome<T>(dPopulation, columnCount, k);
 }
 
 template <class T>
-auto Brkga::wrapGpu(T* pop, unsigned popId, unsigned n) -> Chromosome<T>* {
+auto Brkga::wrapGpu(T* pop, uint popId, uint n) -> Chromosome<T>* {
   // TODO this will not work for transposed matrices with the `all` decoder
   pop += popId * n * config.chromosomeLength();
   auto* wrap = ((Chromosome<T>*)populationWrapper) + popId * n;
@@ -451,13 +447,13 @@ void Brkga::sortChromosomesGenes() {
   if (config.decodeType().chromosome()) return;
   logger::debug("Sorting the chromosomes for sorted decode");
 
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+  for (uint p = 0; p < config.numberOfPopulations(); ++p)
     gpu::iotaMod(streams[p], dPermutations.row(p),
                  config.populationSize() * config.chromosomeLength(),
                  config.chromosomeLength());
 
   // Copy to temp memory since the sort modifies the original array.
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+  for (uint p = 0; p < config.numberOfPopulations(); ++p)
     gpu::copy(streams[p], dPopulationTemp.row(p), dPopulation.row(p),
               config.populationSize() * config.chromosomeLength());
 
@@ -484,18 +480,18 @@ void Brkga::sortChromosomesGenes() {
  * @param count The number of elites to copy.
  */
 __global__ void deviceExchangeElite(Gene* population,
-                                    unsigned chromosomeLength,
-                                    unsigned populationSize,
-                                    unsigned numberOfPopulations,
-                                    unsigned* dFitnessIdx,
-                                    unsigned count) {
+                                    uint chromosomeLength,
+                                    uint populationSize,
+                                    uint numberOfPopulations,
+                                    uint* dFitnessIdx,
+                                    uint count) {
   const auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid >= chromosomeLength) return;
 
-  for (unsigned i = 0; i < numberOfPopulations; ++i)
-    for (unsigned j = 0; j < numberOfPopulations; ++j)
+  for (uint i = 0; i < numberOfPopulations; ++i)
+    for (uint j = 0; j < numberOfPopulations; ++j)
       if (i != j)  // don't duplicate chromosomes
-        for (unsigned k = 0; k < count; ++k) {
+        for (uint k = 0; k < count; ++k) {
           // Position of the bad chromosome to be replaced
           // Note that `j < i` is due the condition above
           // Over the iterations of each population, `p` will be:
@@ -554,7 +550,7 @@ std::vector<Gene> Brkga::getBestChromosome() {
   return best;
 }
 
-std::vector<unsigned> Brkga::getBestPermutation() {
+std::vector<GeneIndex> Brkga::getBestPermutation() {
   if (config.decodeType().chromosome())
     throw InvalidArgument("The chromosome decoder has no permutation",
                           BOX_FUNCTION);
@@ -564,7 +560,7 @@ std::vector<unsigned> Brkga::getBestPermutation() {
   auto bestChromosome = bestIdx.second;
 
   // Copy the best chromosome
-  std::vector<unsigned> best(config.chromosomeLength());
+  std::vector<GeneIndex> best(config.chromosomeLength());
   gpu::copy2h(streams[0], best.data(),
               dPermutations.row(bestPopulation)
                   + bestChromosome * config.chromosomeLength(),
@@ -582,24 +578,24 @@ Fitness Brkga::getBestFitness() {
   return bestFitness;
 }
 
-std::pair<unsigned, unsigned> Brkga::getBest() {
+std::pair<uint, uint> Brkga::getBest() {
   logger::debug("Searching for the best population/chromosome");
 
-  const unsigned chromosomesToCopy = 1;
+  const uint chromosomesToCopy = 1;
   std::vector<Fitness> bestFitness(config.numberOfPopulations(), -1);
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
+  for (uint p = 0; p < config.numberOfPopulations(); ++p)
     gpu::copy2h(streams[p], &bestFitness[p], dFitness.row(p),
                 chromosomesToCopy);
 
   // Find the best population
-  unsigned bestPopulation = 0;
-  for (unsigned p = 1; p < config.numberOfPopulations(); ++p) {
+  uint bestPopulation = 0;
+  for (uint p = 1; p < config.numberOfPopulations(); ++p) {
     gpu::sync(streams[p]);
     if (bestFitness[p] < bestFitness[bestPopulation]) bestPopulation = p;
   }
 
   // Get the index of the best chromosome
-  unsigned bestChromosome = (unsigned)-1;
+  uint bestChromosome = (uint)-1;
   gpu::copy2h(streams[0], &bestChromosome, dFitnessIdx.row(bestPopulation),
               chromosomesToCopy);
   gpu::sync(streams[0]);
@@ -610,12 +606,12 @@ std::pair<unsigned, unsigned> Brkga::getBest() {
   return {bestPopulation, bestChromosome};
 }
 
-std::vector<DecodedChromosome> Brkga::getPopulation(unsigned p) {
+std::vector<DecodedChromosome> Brkga::getPopulation(uint p) {
   std::vector<Fitness> hFitness(config.populationSize());
   gpu::copy2h(streams[p], hFitness.data(), dFitness.row(p),
               config.populationSize());
 
-  std::vector<unsigned> hFitnessIdx(config.populationSize());
+  std::vector<uint> hFitnessIdx(config.populationSize());
   gpu::copy2h(streams[p], hFitnessIdx.data(), dFitnessIdx.row(p),
               config.populationSize());
 
@@ -625,7 +621,7 @@ std::vector<DecodedChromosome> Brkga::getPopulation(unsigned p) {
               config.populationSize() * config.chromosomeLength());
 
   std::vector<DecodedChromosome> decoded;
-  for (unsigned i = 0; i < config.populationSize(); ++i) {
+  for (uint i = 0; i < config.populationSize(); ++i) {
     const auto ptr =
         hChromosomes.begin() + hFitnessIdx[i] * config.chromosomeLength();
     decoded.push_back(DecodedChromosome{
@@ -636,7 +632,6 @@ std::vector<DecodedChromosome> Brkga::getPopulation(unsigned p) {
 }
 
 void Brkga::syncStreams() {
-  for (unsigned p = 0; p < config.numberOfPopulations(); ++p)
-    gpu::sync(streams[p]);
+  for (uint p = 0; p < config.numberOfPopulations(); ++p) gpu::sync(streams[p]);
 }
 }  // namespace box

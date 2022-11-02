@@ -24,19 +24,19 @@ namespace box {
 namespace gpu {
 /// Synchronize the host with the main stream in the device.
 inline void sync() {
-  box::logger::debug("Sync with the main stream");
+  logger::debug("Sync with the main stream");
   CUDA_CHECK(cudaDeviceSynchronize());
 }
 
 /// Synchronize the host with the specified stream.
 inline void sync(cudaStream_t stream) {
-  box::logger::debug("Sync with stream", (void*)stream);
+  logger::debug("Sync with stream", (void*)stream);
   CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
 /// Set the maximum memory allocated on the heap to @p maxBytes bytes.
 inline void setMaxHeapSize(std::size_t maxBytes) {
-  box::logger::debug("Increase heap limit to", maxBytes, "bytes");
+  logger::debug("Increase heap limit to", maxBytes, "bytes");
   CUDA_CHECK(cudaDeviceSetLimit(cudaLimitMallocHeapSize, maxBytes));
 }
 
@@ -51,7 +51,7 @@ inline void setMaxHeapSize(std::size_t maxBytes) {
  */
 template <class T>
 inline T* alloc(cudaStream_t stream, std::size_t n) {
-  box::logger::debug("Allocating", n, "elements of", sizeof(T), "bytes");
+  logger::debug("Allocating", n, "elements of", sizeof(T), "bytes");
   T* ptr = nullptr;
   CUDA_CHECK(cudaMallocAsync(&ptr, n * sizeof(T), stream));
   return ptr;
@@ -66,7 +66,7 @@ inline T* alloc(cudaStream_t stream, std::size_t n) {
  */
 template <class T>
 inline void free(cudaStream_t stream, T* ptr) {
-  box::logger::debug("Free", (void*)ptr);
+  logger::debug("Free", (void*)ptr);
   CUDA_CHECK(cudaFreeAsync(ptr, stream));
 }
 
@@ -79,13 +79,13 @@ inline cudaStream_t allocStream() {
 
 /// Releases an allocated stream.
 inline void free(cudaStream_t stream) {
-  box::logger::debug("Free stream", (void*)stream);
+  logger::debug("Free stream", (void*)stream);
   CUDA_CHECK(cudaStreamDestroy(stream));
 }
 
 /// Creates a new random number generator.
 inline curandGenerator_t allocRandomGenerator(
-    unsigned long long seed,
+    ulong seed,
     curandRngType_t type = CURAND_RNG_PSEUDO_DEFAULT) {
   curandGenerator_t generator = nullptr;
   curandCreateGenerator(&generator, type);
@@ -96,7 +96,7 @@ inline curandGenerator_t allocRandomGenerator(
 
 /// Releases an allocated random generator.
 inline void free(curandGenerator_t generator) {
-  box::logger::debug("Free generator", (void*)generator);
+  logger::debug("Free generator", (void*)generator);
   curandDestroyGenerator(generator);
   CUDA_CHECK_LAST();
 }
@@ -111,8 +111,8 @@ inline void free(curandGenerator_t generator) {
  */
 template <class T>
 inline void copy(cudaStream_t stream, T* dest, const T* src, std::size_t n) {
-  box::logger::debug("Copy", n, "elements from", (void*)src, "(device) to",
-                     (void*)dest, "(device) on stream", (void*)stream);
+  logger::debug("Copy", n, "elements from", (void*)src, "(device) to",
+                (void*)dest, "(device) on stream", (void*)stream);
   CUDA_CHECK(cudaMemcpyAsync(dest, src, n * sizeof(T), cudaMemcpyDeviceToDevice,
                              stream));
 }
@@ -127,9 +127,8 @@ inline void copy(cudaStream_t stream, T* dest, const T* src, std::size_t n) {
  */
 template <class T>
 inline void copy2d(cudaStream_t stream, T* dest, const T* src, std::size_t n) {
-  box::logger::debug("Copy", n, "elements of", sizeof(T), "bytes from",
-                     (void*)src, "(host) to", (void*)dest, "(device) on stream",
-                     (void*)stream);
+  logger::debug("Copy", n, "elements of", sizeof(T), "bytes from", (void*)src,
+                "(host) to", (void*)dest, "(device) on stream", (void*)stream);
   CUDA_CHECK(cudaMemcpyAsync(dest, src, n * sizeof(T), cudaMemcpyHostToDevice,
                              stream));
 }
@@ -144,8 +143,8 @@ inline void copy2d(cudaStream_t stream, T* dest, const T* src, std::size_t n) {
  */
 template <class T>
 inline void copy2h(cudaStream_t stream, T* dest, const T* src, std::size_t n) {
-  box::logger::debug("Copy", n, "elements from", (void*)src, "(device) to",
-                     (void*)dest, "(host) on stream", (void*)stream);
+  logger::debug("Copy", n, "elements from", (void*)src, "(device) to",
+                (void*)dest, "(host) on stream", (void*)stream);
   CUDA_CHECK(cudaMemcpyAsync(dest, src, n * sizeof(T), cudaMemcpyDeviceToHost,
                              stream));
 }
@@ -156,8 +155,8 @@ inline void copy2h(cudaStream_t stream, T* dest, const T* src, std::size_t n) {
  * @param threads The desired number of threads.
  * @return The minimum number of blocks `k` s.t. `k * threads >= n`.
  */
-[[nodiscard]] inline constexpr unsigned blocks(unsigned n, unsigned threads) {
-  return (n + threads - 1) / threads;
+[[nodiscard]] inline constexpr unsigned blocks(uint n, uint threads) {
+  return (unsigned)((n + threads - 1) / threads);
 }
 
 /**
@@ -166,16 +165,21 @@ inline void copy2h(cudaStream_t stream, T* dest, const T* src, std::size_t n) {
  * @param arr The array to store the sequence
  * @param n The size of the array.
  */
-void iota(cudaStream_t stream, unsigned* arr, unsigned n);
+void iota(cudaStream_t stream, uint* arr, uint n);
 
-/**
- * Sets the sequence `0, 1, ..., k-1, 0, 1, ...` and so on to an array.
- * @param arr The array to store the sequence
- * @param n The size of the array.
- * @param k The steps of the sequence.
- * @param stream The stream to process.
- */
-void iotaMod(cudaStream_t stream, unsigned* arr, unsigned n, unsigned k);
+/// @brief Builds the sequence `0, 1, ..., k-1, 0, 1, ...`.
+/// @param stream The stream to run on.
+/// @param arr The output array were the values will be stored.
+/// @param n The length of the array.
+/// @param k The period of the sequence.
+void iotaMod(cudaStream_t stream, uint* arr, uint n, uint k);
+
+/// @brief Builds the sequence `0, 1, ..., k-1, 0, 1, ...`.
+/// @param stream The stream to run on.
+/// @param arr The output array were the values will be stored.
+/// @param n The length of the array.
+/// @param k The period of the sequence.
+void iotaMod(cudaStream_t stream, ulong* arr, uint n, uint k);
 
 /// @brief Generate random values in range (0, 1].
 /// @param stream The stream to run on.
@@ -222,7 +226,7 @@ public:
   ~CachedAllocator() {
     try {
       free();
-    } catch (box::CudaError& e) {
+    } catch (CudaError& e) {
       // "driver shutting down" error
     }
   }
@@ -281,8 +285,8 @@ inline void sortByKey(cudaStream_t stream,
  * @throw std::invalid_argument if @p size doesn't fit 31 bit integer.
  */
 void segSort(cudaStream_t stream,
-             box::Gene* dKeys,
-             unsigned* dValues,
+             Gene* dKeys,
+             GeneIndex* dValues,
              std::size_t size,
              std::size_t step);
 

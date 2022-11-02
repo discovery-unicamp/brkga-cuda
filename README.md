@@ -35,7 +35,7 @@ private:
   std::vector<float> distances;  // "matrix" of 2d distances
 
 public:
-  // required since we override just one overload
+  // required since we made just one overload
   using box::Decoder::decode;
 
   TspDecoder(const std::vector<std::pair<float, float>>& points)
@@ -48,10 +48,11 @@ public:
                         points[i].second - points[j].second);
   }
 
-  // must implement a deterministic decoder for permutations
-  float decode(const box::Chromosome<unsigned>& tour) const override {
+  // implement a deterministic decoder for permutations
+  box::Fitness decode(
+      const box::Chromosome<box::GeneIndex>& tour) const override {
     const auto n = config->chromosomeLength();  // from box::Decoder
-    float fitness = distances[tour[0] * n + tour[n - 1]];
+    float fitness = distances[tour[0] * n + tour[n - 1]];  // use operator[]
     for (unsigned i = 1; i < n; ++i)
       fitness += distances[tour[i - 1] * n + tour[i]];
     return fitness;
