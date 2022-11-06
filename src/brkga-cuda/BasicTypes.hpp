@@ -30,7 +30,7 @@ typedef std::uint64_t ulong;
 typedef float float_t;
 
 typedef float_t Gene;
-typedef ulong GeneIndex;
+typedef uint GeneIndex;
 typedef float_t Fitness;  // FIXME how to handle user type without template?
 }  // namespace box
 
