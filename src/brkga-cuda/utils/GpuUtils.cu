@@ -30,7 +30,7 @@ __global__ void deviceIotaMod(T* arr, uint n, uint k) {
 }
 
 template <class T>
-void iotaMod(cudaStream_t stream, T* arr, uint n, uint k) {
+void iotaModImpl(cudaStream_t stream, T* arr, uint n, uint k) {
   constexpr auto threads = 256;
   logger::debug("iotaMod on", n, "elements mod", k, "to array", (void*)arr,
                 "on stream", (void*)stream, "using", threads, "threads");
@@ -39,11 +39,11 @@ void iotaMod(cudaStream_t stream, T* arr, uint n, uint k) {
 }
 
 void gpu::iotaMod(cudaStream_t stream, uint* arr, uint n, uint k) {
-  iotaMod(stream, arr, n, k);
+  iotaModImpl(stream, arr, n, k);
 }
 
 void gpu::iotaMod(cudaStream_t stream, ulong* arr, uint n, uint k) {
-  iotaMod(stream, arr, n, k);
+  iotaModImpl(stream, arr, n, k);
 }
 
 auto gpu::_detail::CachedAllocator::allocate(std::size_t nbytes) -> byte* {
