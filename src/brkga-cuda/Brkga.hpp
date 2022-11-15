@@ -21,9 +21,6 @@ struct DecodedChromosome {
 };
 
 namespace box {
-class DecodeType;
-class Decoder;
-
 // FIXME the solution returns different results for the same seed
 /// Implements the BRKGA algorithm for GPUs
 class Brkga {
@@ -68,6 +65,12 @@ public:
   /// @warning This method doesn't use the permutation decoder. You should
   ///   implement the chromosome decoder otherwise an exception will be thrown.
   void runPathRelink(const std::vector<PathRelinkPair>& pairList);
+
+  /// Run the local search implemented on @p method on each chromosome
+  void localSearch(std::function<void(Gene*)> method);
+
+  /// Run the local search implemented on @p method on each chromosome
+  void localSearch(std::function<void(GeneIndex*)> method);
 
   // TODO how to handle any type provided by the user without templates?
   /// Get the fitness of the best chromosome found so far.

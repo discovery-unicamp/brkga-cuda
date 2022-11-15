@@ -18,6 +18,10 @@
 #include <string>
 #include <vector>
 
+#ifndef NDEBUG
+#warning Compiling without the NDEBUG flag makes the algorithm VERY SLOW!
+#endif  // NDEBUG
+
 namespace box {
 /// Initialize @p n @p states with given @p seed as suggested in:
 /// https://docs.nvidia.com/cuda/curand/device-api-overview.html#device-api-overview
@@ -159,7 +163,7 @@ __device__ void rangeSample(uint* sample,
     assert(x >= a);
     uint j;
     for (j = 0; j < i && x >= sample[j]; ++j) ++x;
-    assert(x < b);
+    assert(x < a + b);
     for (j = i; j != 0 && x < sample[j - 1]; --j) sample[j] = sample[j - 1];
     sample[j] = x;
   }
@@ -219,7 +223,7 @@ __global__ void evolveMate(Gene* population,
                            const uint chromosomeLength) {
   extern __shared__ char sharedMemory[];
 
-  float* bias = (float*)sharedMemory;
+  auto* bias = (float*)sharedMemory;
   for (uint i = threadIdx.x; i < numberOfParents; i += blockDim.x)
     bias[i] = dBias[i];
 
@@ -318,7 +322,7 @@ void Brkga::evolve() {
 void Brkga::updateFitness() {
   logger::debug("Updating the population fitness");
 
-  sortChromosomesGenes();
+  if (!config.decodeType().chromosome()) sortChromosomesGenes();
 
   if (config.decodeType().onCpu()) {
     logger::debug("Copying data to host");
@@ -444,7 +448,6 @@ auto Brkga::wrapGpu(T* pop, uint popId, uint n) -> Chromosome<T>* {
 }
 
 void Brkga::sortChromosomesGenes() {
-  if (config.decodeType().chromosome()) return;
   logger::debug("Sorting the chromosomes for sorted decode");
 
   for (uint p = 0; p < config.numberOfPopulations(); ++p)
@@ -570,6 +573,97 @@ std::vector<GeneIndex> Brkga::getBestPermutation() {
   return best;
 }
 
+void Brkga::localSearch(std::function<void(Gene*)> method) {
+  const auto totalChromosomes =
+      config.numberOfPopulations() * config.populationSize();
+  const auto totalGenes = totalChromosomes * config.chromosomeLength();
+  const auto genesPerPopulation =
+      config.populationSize() * config.chromosomeLength();
+
+  population.resize(totalGenes);
+
+  for (uint i = 0; i < config.numberOfPopulations(); ++i) {
+    gpu::copy2h(streams[i], population.data() + i * genesPerPopulation,
+                dPopulation.row(i), genesPerPopulation);
+  }
+  for (uint i = 0; i < config.numberOfPopulations(); ++i) {
+    gpu::sync(streams[i]);
+    for (uint j = 0; j < config.populationSize(); ++j) {
+      const auto offset =
+          i * genesPerPopulation + j * config.chromosomeLength();
+      method(population.data() + offset);
+    }
+
+    gpu::copy2d(streams[i], dPopulation.row(i),
+                population.data() + i * genesPerPopulation, genesPerPopulation);
+  }
+
+  updateFitness();
+}
+
+void Brkga::localSearch(std::function<void(GeneIndex*)> method) {
+  const auto totalChromosomes =
+      config.numberOfPopulations() * config.populationSize();
+  const auto totalGenes = totalChromosomes * config.chromosomeLength();
+  const auto genesPerPopulation =
+      config.populationSize() * config.chromosomeLength();
+
+  population.resize(totalGenes);
+  permutations.resize(totalGenes);
+
+  // If the decode type is permutation, then the chromosomes are already sorted
+  if (config.decodeType().chromosome()) sortChromosomesGenes();
+
+  logger::debug("Running user provided local search");
+
+  for (uint i = 0; i < config.numberOfPopulations(); ++i) {
+    gpu::copy2h(streams[i], permutations.data() + i * genesPerPopulation,
+                dPermutations.row(i), genesPerPopulation);
+  }
+
+#ifdef _OPENMP
+  for (uint i = 0; i < config.numberOfPopulations(); ++i) gpu::sync(streams[i]);
+
+#pragma omp parallel for if (config.ompThreads() > 1) \
+    collapse(2) default(shared) num_threads(config.ompThreads())
+#endif  // _OPENMP
+  for (uint i = 0; i < config.numberOfPopulations(); ++i) {
+#ifndef _OPENMP
+    gpu::sync(streams[i]);
+#endif  // _OPENMP
+
+    for (uint j = 0; j < config.populationSize(); ++j) {
+      const auto offset =
+          i * genesPerPopulation + j * config.chromosomeLength();
+
+      method(permutations.data() + offset);
+
+      auto* perm = permutations.data() + offset;
+      auto* chr = population.data() + offset;
+      auto gene = (Gene)0;
+      const auto geneInc = (Gene)1 / (Gene)config.chromosomeLength();
+      for (uint k = 0; k < config.chromosomeLength(); ++k) {
+        chr[perm[k]] = gene;
+        gene += geneInc;
+      }
+    }
+
+#ifndef _OPENMP
+    gpu::copy2d(streams[i], dPopulation.row(i),
+                population.data() + i * genesPerPopulation, genesPerPopulation);
+#endif  // _OPENMP
+  }
+
+#ifdef _OPENMP
+  for (uint i = 0; i < config.numberOfPopulations(); ++i) {
+    gpu::copy2d(streams[i], dPopulation.row(i),
+                population.data() + i * genesPerPopulation, genesPerPopulation);
+  }
+#endif  // _OPENMP
+
+  updateFitness();
+}
+
 Fitness Brkga::getBestFitness() {
   const auto bestPopulation = getBest().first;
   Fitness bestFitness;
@@ -595,7 +689,7 @@ std::pair<uint, uint> Brkga::getBest() {
   }
 
   // Get the index of the best chromosome
-  uint bestChromosome = (uint)-1;
+  uint bestChromosome = -1u;
   gpu::copy2h(streams[0], &bestChromosome, dFitnessIdx.row(bestPopulation),
               chromosomesToCopy);
   gpu::sync(streams[0]);
