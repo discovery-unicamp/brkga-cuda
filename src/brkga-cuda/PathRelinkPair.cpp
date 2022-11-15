@@ -8,10 +8,10 @@
 
 #include <random>
 
+namespace box {
 // FIXME use the provided seed?
 std::mt19937 rng(0);
 
-namespace box {
 std::vector<PathRelinkPair> PathRelinkPair::bestElites(
     const BrkgaConfiguration& config,
     Gene* population,  // TODO add support to GPU
