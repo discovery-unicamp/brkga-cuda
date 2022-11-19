@@ -10,7 +10,8 @@ enable_language(CUDA)
 include_directories(SYSTEM "${CUDA_INCLUDE_DIRS}")
 
 add_library(brkga-cuda
-  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/PathRelink.cu
+  # ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/PathRelink.cu
+  ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/PathRelinkCEAndrade.cpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/brkga/Filter.cu
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/except/InvalidArgument.hpp
   ${CMAKE_CURRENT_LIST_DIR}/brkga-cuda/except/NotImplemented.hpp
